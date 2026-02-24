@@ -39,7 +39,16 @@ export default function Cause() {
                 .order('created_at', { ascending: false });
 
             if (error) throw error;
-            setCauseList(data || []);
+
+            // Mappiamo i dati restituiti dal DB con le proprietà usate dal componente React
+            const mappedData = (data || []).map(c => ({
+                id: c.id,
+                nome: c.nome_causa,
+                compenso: c.compenso_lordo,
+                data: c.data_sentenza,
+                stato: c.stato
+            }));
+            setCauseList(mappedData);
         } catch (error) {
             console.error('Errore nel caricamento pratiche:', error);
         } finally {
@@ -56,13 +65,15 @@ export default function Cause() {
         setIsSaving(true);
         try {
             const compensoFloat = parseFloat(nuovaCausa.compenso);
+
+            // Payload allineato ESATTAMENTE alle colonne generate nello script SQL iniziale 
             const dataToInsert = {
                 user_id: user?.id,
-                nome: nuovaCausa.nome,
-                compenso: compensoFloat,
-                data: nuovaCausa.data,
-                tipologia_fiscale: nuovaCausa.tipologia_fiscale,
-                stato: "incassata" // Di default l'entrata registrata è considerata incassata
+                nome_causa: nuovaCausa.nome,
+                compenso_lordo: compensoFloat,
+                data_sentenza: nuovaCausa.data,
+                // tipologia_fiscale: nuovaCausa.tipologia_fiscale, <--- Disabilitato finché non crei la colonna DB
+                stato: "incassata"
             };
 
             const { error } = await supabase
@@ -71,7 +82,6 @@ export default function Cause() {
 
             if (error) throw error;
 
-            // Chiudi il modal, sbianca il form e ricarica i dati
             setShowModal(false);
             setNuovaCausa({
                 nome: "",
@@ -83,7 +93,7 @@ export default function Cause() {
 
         } catch (error: any) {
             console.error('Errore nel salvataggio:', error);
-            alert("Errore nel salvare l'entrata: " + error.message);
+            alert("Errore salva file: " + error.message);
         } finally {
             setIsSaving(false);
         }

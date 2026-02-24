@@ -55,26 +55,31 @@ export default function Dashboard() {
 
     try {
       // 1. Carica le Cause
-      const { data: cause } = await supabase
+      const { data: cause, error: errCause } = await supabase
         .from('cause')
-        .select('compenso, tipologia_fiscale')
+        .select('*')
         .eq('user_id', user?.id)
-        .gte('data', startOfMonth.split('T')[0]);
+        .gte('data_sentenza', startOfMonth.split('T')[0]);
+
+      if (errCause) {
+        console.error("Errore fetch cause mensili: ", errCause.message);
+      }
 
       let totEntrate = 0;
       let totTasseAccantonate = 0;
 
       if (cause) {
         cause.forEach(c => {
-          const importo = Number(c.compenso);
+          const importo = Number(c.compenso_lordo || 0);
           totEntrate += importo;
 
-          // Calcolo rapido per mostrare quante tasse virtuali si stanno generando questo mese
-          if (c.tipologia_fiscale === "forfettario_5") {
+          const tipoFiscale = c.tipologia_fiscale || "forfettario_15"; // Fallback se colonna assente
+
+          if (tipoFiscale === "forfettario_5") {
             totTasseAccantonate += (importo * 0.78 * 0.05) + (importo * 0.78 * 0.17); // Irpef + Cassa
-          } else if (c.tipologia_fiscale === "forfettario_15") {
+          } else if (tipoFiscale === "forfettario_15") {
             totTasseAccantonate += (importo * 0.78 * 0.15) + (importo * 0.78 * 0.17);
-          } else if (c.tipologia_fiscale === "ordinario") {
+          } else if (tipoFiscale === "ordinario") {
             totTasseAccantonate += importo * 0.46; // Trattenuta media fissa usata nel tool
           }
         });

@@ -2,9 +2,14 @@
 
 import { useState, useRef } from "react";
 import { useUser } from "@clerk/nextjs";
+import { createClient } from "@supabase/supabase-js";
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 export default function ScannerScontrini() {
-    const { isLoaded, isSignedIn } = useUser();
+    const { isLoaded, isSignedIn, user } = useUser();
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const [file, setFile] = useState<File | null>(null);
@@ -15,6 +20,10 @@ export default function ScannerScontrini() {
         categoria: string;
         testoEstratto: string;
     } | null>(null);
+
+    // Stato form manuale
+    const [spesaManuale, setSpesaManuale] = useState({ importo: "", categoria: "Altro", descrizione: "" });
+    const [isSaving, setIsSaving] = useState(false);
 
     const handleCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
@@ -32,10 +41,8 @@ export default function ScannerScontrini() {
 
     const scansionaImmagine = async () => {
         if (!file) return;
-
         setIsScanning(true);
 
-        // Converti l'immagine in base64
         const base64Data = await new Promise<string>((resolve) => {
             const reader = new FileReader();
             reader.onloadend = () => resolve((reader.result as string).split(',')[1]);
@@ -43,7 +50,6 @@ export default function ScannerScontrini() {
         });
 
         try {
-            // Chiamata all'API Python Serverless che creeremo nell'Azione 4
             const response = await fetch('/api/ocr', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -65,9 +71,61 @@ export default function ScannerScontrini() {
         }
     };
 
+    const salvaSpesaManuale = async () => {
+        if (!spesaManuale.importo) {
+            alert("Inserisci l'importo della spesa."); return;
+        }
+
+        setIsSaving(true);
+        try {
+            const { error } = await supabase.from('transazioni').insert({
+                user_id: user?.id,
+                tipo: 'uscita',
+                importo: parseFloat(spesaManuale.importo),
+                categoria: spesaManuale.categoria,
+                descrizione: spesaManuale.descrizione
+            });
+
+            if (error) throw error;
+
+            alert("Spesa registrata con successo a Bilancio!");
+            setSpesaManuale({ importo: "", categoria: "Altro", descrizione: "" });
+        } catch (err: any) {
+            console.error(err);
+            alert("Si è verificato un errore nel salvataggio. Controlla i permessi o le policy: " + err.message);
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const salvaScanner = async () => {
+        if (!scannedData) return;
+        setIsSaving(true);
+        try {
+            const { error } = await supabase.from('transazioni').insert({
+                user_id: user?.id,
+                tipo: 'uscita',
+                importo: scannedData.importo,
+                categoria: scannedData.categoria,
+                descrizione: "Auto-Scansione AI"
+            });
+
+            if (error) throw error;
+
+            alert("Scontrino AI registrato con successo!");
+            setFile(null);
+            setPreview(null);
+            setScannedData(null);
+        } catch (err: any) {
+            console.error(err);
+            alert("Si è verificato un errore nel salvataggio scanner. " + err.message);
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
     const [mode, setMode] = useState<"scanner" | "manuale">("scanner");
 
-    // Renderizza il modale in cima se richiamato da un'altra pagina, ma qui lo mettiamo standalone per semplicità
     if (!isLoaded || !isSignedIn) return null;
 
     return (
@@ -171,8 +229,8 @@ export default function ScannerScontrini() {
                                 {scannedData.testoEstratto}
                             </div>
 
-                            <button className="ios-btn-large" style={{ background: "var(--success)" }}>
-                                Conferma e Salva in {scannedData.categoria}
+                            <button className="ios-btn-large" style={{ background: "var(--success)" }} onClick={salvaScanner} disabled={isSaving}>
+                                {isSaving ? "Salvataggio..." : `Conferma e Salva in ${scannedData.categoria}`}
                             </button>
                         </div>
                     )}
@@ -182,10 +240,22 @@ export default function ScannerScontrini() {
                     <h3 style={{ marginBottom: "1rem" }}>Inserimento Manuale</h3>
 
                     <label style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.9rem", opacity: 0.7 }}>Importo (€)</label>
-                    <input type="number" placeholder="Es. 45.50" className="ios-input" step="0.01" />
+                    <input
+                        type="number"
+                        placeholder="Es. 45.50"
+                        className="ios-input"
+                        step="0.01"
+                        value={spesaManuale.importo}
+                        onChange={(e) => setSpesaManuale({ ...spesaManuale, importo: e.target.value })}
+                    />
 
                     <label style={{ display: "block", marginBottom: "0.5rem", marginTop: "1rem", fontSize: "0.9rem", opacity: 0.7 }}>Categoria di Spesa</label>
-                    <select className="ios-input" style={{ appearance: "none" }}>
+                    <select
+                        className="ios-input"
+                        style={{ appearance: "none" }}
+                        value={spesaManuale.categoria}
+                        onChange={(e) => setSpesaManuale({ ...spesaManuale, categoria: e.target.value })}
+                    >
                         <option value="Alimenti">🛒 Alimenti</option>
                         <option value="Ristoranti">🍽️ Ristoranti</option>
                         <option value="Salute">💊 Salute</option>
@@ -205,10 +275,21 @@ export default function ScannerScontrini() {
                     </select>
 
                     <label style={{ display: "block", marginBottom: "0.5rem", marginTop: "1rem", fontSize: "0.9rem", opacity: 0.7 }}>Descrizione (Opzionale)</label>
-                    <input type="text" placeholder="Es. Cena di lavoro ristorante" className="ios-input" />
+                    <input
+                        type="text"
+                        placeholder="Es. Cena di lavoro ristorante"
+                        className="ios-input"
+                        value={spesaManuale.descrizione}
+                        onChange={(e) => setSpesaManuale({ ...spesaManuale, descrizione: e.target.value })}
+                    />
 
-                    <button className="ios-btn-large" style={{ marginTop: "1.5rem" }}>
-                        Aggiungi Spesa
+                    <button
+                        className="ios-btn-large"
+                        style={{ marginTop: "1.5rem" }}
+                        onClick={salvaSpesaManuale}
+                        disabled={isSaving}
+                    >
+                        {isSaving ? "Salvataggio..." : "Aggiungi Spesa"}
                     </button>
                 </div>
             )}

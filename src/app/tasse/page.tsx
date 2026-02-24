@@ -43,12 +43,16 @@ export default function Tasse() {
             const startOfYear = `${currentYear}-01-01`;
             const endOfYear = `${currentYear}-12-31`;
 
-            const { data: cause } = await supabase
+            const { data: cause, error: errCause } = await supabase
                 .from('cause')
                 .select('*')
                 .eq('user_id', user?.id)
-                .gte('data', startOfYear)
-                .lte('data', endOfYear);
+                .gte('data_sentenza', startOfYear)
+                .lte('data_sentenza', endOfYear);
+
+            if (errCause) {
+                console.error("Errore fetch cause annue:", errCause);
+            }
 
             // 2. Prendi tutte le Spese dell'anno corrente (In caso di regime ordinario servono come deduzione)
             const { data: spese } = await supabase
@@ -56,8 +60,8 @@ export default function Tasse() {
                 .select('importo, categoria')
                 .eq('user_id', user?.id)
                 .eq('tipo', 'uscita')
-                .gte('data', startOfYear)
-                .lte('data', endOfYear);
+                .gte('data_transazione', startOfYear)
+                .lte('data_transazione', endOfYear);
 
             const speseTotali = (spese || []).reduce((acc, curr) => acc + curr.importo, 0);
 
@@ -68,11 +72,11 @@ export default function Tasse() {
 
             if (cause) {
                 cause.forEach(c => {
-                    const importoLordo = Number(c.compenso);
+                    const importoLordo = Number(c.compenso_lordo || 0);
                     totLordo += importoLordo;
 
                     let imponibile = 0, tasse = 0, cassa = 0, netto = 0;
-                    const r = c.tipologia_fiscale;
+                    const r = c.tipologia_fiscale || "forfettario_15";
 
                     if (r === "forfettario_5" || r === "forfettario_15") {
                         imponibile = importoLordo * 0.78;
@@ -81,7 +85,6 @@ export default function Tasse() {
                         cassa = imponibile * 0.17; // Modello semplificato
                         netto = importoLordo - tasse - cassa;
                     } else if (r === "ordinario") {
-                        // Nell'ordinario la deduzione vera dipenderebbe da tutto, facciamo una stima al 46% sulle tasse
                         const trattenuta = importoLordo * 0.46;
                         tasse = trattenuta * 0.6;
                         cassa = trattenuta * 0.4;
