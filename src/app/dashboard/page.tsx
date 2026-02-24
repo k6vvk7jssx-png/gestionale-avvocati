@@ -41,6 +41,7 @@ export default function Dashboard() {
   const [usciteMensili, setUsciteMensili] = useState(0);
   const [tasseMensiliAccantonate, setTasseMensiliAccantonate] = useState(0);
   const [categorieSpesa, setCategorieSpesa] = useState(categorieIniziali);
+  const [transazioniMese, setTransazioniMese] = useState<any[]>([]);
 
   useEffect(() => {
     if (isSignedIn && user) {
@@ -92,15 +93,17 @@ export default function Dashboard() {
       // 2. Carica le Uscite (Transazioni)
       const { data: uscite } = await supabase
         .from('transazioni')
-        .select('importo, categoria')
+        .select('id, importo, categoria, descrizione, data_transazione, created_at')
         .eq('user_id', user?.id)
         .eq('tipo', 'uscita')
-        .gte('data', startOfMonth);
+        .gte('data_transazione', startOfMonth.split('T')[0])
+        .order('created_at', { ascending: false });
 
       let totUscite = 0;
       const nuoveCategorie = categorieIniziali.map(c => ({ ...c, totale: 0 })); // Reset
 
       if (uscite) {
+        setTransazioniMese(uscite);
         uscite.forEach(u => {
           totUscite += Number(u.importo);
           const catIndex = nuoveCategorie.findIndex(c => c.nome === u.categoria);
@@ -119,6 +122,28 @@ export default function Dashboard() {
 
     } catch (error) {
       console.error("Errore recupero dashboard:", error);
+    }
+  };
+
+  const handleDeleteTransazione = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const confirmed = window.confirm("Sei sicuro di voler eliminare questa spesa?");
+    if (!confirmed) return;
+
+    try {
+      const { error } = await supabase
+        .from('transazioni')
+        .delete()
+        .eq('id', id)
+        .eq('user_id', user?.id);
+
+      if (error) throw error;
+
+      await caricaDatiMensili();
+      setSelectedCategory(null); // Chiude o rinfresca il modale
+    } catch (err: any) {
+      console.error(err);
+      alert("Errore nell'eliminazione: " + err.message);
     }
   };
 
@@ -158,6 +183,11 @@ export default function Dashboard() {
   if (!isLoaded || !isSignedIn) {
     return null; // O caricamento
   }
+
+  // Filtra transazioni per la modale se aperta
+  const transazioniDellaCategoria = selectedCategory
+    ? transazioniMese.filter(t => t.categoria === selectedCategory.nome)
+    : [];
 
   return (
     <div className="pb-20">
@@ -236,19 +266,41 @@ export default function Dashboard() {
             <div className="bottom-sheet-handle"></div>
             <button className="bottom-sheet-close" onClick={() => setSelectedCategory(null)}>&times;</button>
 
-            <div style={{ textAlign: "center", marginTop: "1rem" }}>
+            <div style={{ textAlign: "center", marginTop: "1rem", marginBottom: "1rem" }}>
               <div style={{ fontSize: "4rem", marginBottom: "1rem" }}>{selectedCategory.icona}</div>
-              <h2>Dettaglio {selectedCategory.nome}</h2>
+              <h2>{selectedCategory.nome}</h2>
               <p style={{ fontSize: "1.5rem", fontWeight: "bold", color: "var(--primary)" }}>
                 Totale Mese: €{selectedCategory.totale.toFixed(2)}
               </p>
+            </div>
 
-              <div style={{ marginTop: "2rem", padding: "1.5rem", background: "var(--background)", borderRadius: "12px", textAlign: "left" }}>
-                <p style={{ opacity: 0.6, fontSize: "0.9rem", textAlign: "center" }}>
-                  Al momento non è possibile esplodere le singole transazioni da questa scorciatoia rapida. Verificabile solo il totale aggregato parziale.
-                </p>
-              </div>
+            <div style={{ padding: "0 1rem", maxHeight: "40vh", overflowY: "auto" }}>
+              {transazioniDellaCategoria.length === 0 ? (
+                <div style={{ textAlign: "center", opacity: 0.5, padding: "2rem" }}>
+                  Nessuna transazione per questa categoria.
+                </div>
+              ) : (
+                transazioniDellaCategoria.map((t) => (
+                  <div key={t.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: "1px solid var(--border)" }}>
+                    <div style={{ textAlign: "left" }}>
+                      <div style={{ fontWeight: "600" }}>{t.descrizione || t.categoria}</div>
+                      <div style={{ fontSize: "0.8rem", opacity: 0.6 }}>{t.data_transazione}</div>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                      <span style={{ fontWeight: "bold", color: "var(--destructive)" }}>€{Number(t.importo).toFixed(2)}</span>
+                      <button
+                        onClick={(e) => handleDeleteTransazione(t.id, e)}
+                        style={{ background: "none", border: "none", color: "var(--destructive)", fontSize: "1.2rem", cursor: "pointer" }}
+                      >
+                        🗑️
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
 
+            <div style={{ textAlign: "center" }}>
               <button
                 className="ios-btn-large"
                 style={{ marginTop: "2rem" }}
