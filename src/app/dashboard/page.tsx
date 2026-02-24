@@ -10,11 +10,11 @@ ChartJS.register(ArcElement, Tooltip, Legend);
 export default function Dashboard() {
   const { isLoaded, isSignedIn, user } = useUser();
 
-  // Dati Mockati (poi verranno presi da DB)
-  const entrateMensili = 4500;
-  const usciteMensili = 1200;
+  // Dati (Inizialmente a zero, pronti per essere popolati via DB Supabase)
+  const entrateMensili = 0;
+  const usciteMensili = 0;
   const nettoMensile = entrateMensili - usciteMensili;
-  const uscitePercentuale = (usciteMensili / entrateMensili) * 100;
+  const uscitePercentuale = entrateMensili > 0 ? (usciteMensili / entrateMensili) * 100 : 0;
 
   const emoticonInfo = uscitePercentuale > 40 ? "😢" : "😀";
 
@@ -22,8 +22,8 @@ export default function Dashboard() {
     labels: ['Entrate Nette', 'Uscite'],
     datasets: [
       {
-        data: [nettoMensile, usciteMensili],
-        backgroundColor: ['#34c759', '#ff3b30'],
+        data: [nettoMensile > 0 ? nettoMensile : 0.1, usciteMensili > 0 ? usciteMensili : 0.1], // 0.1 evita il grafico completamente rotto se vuoto
+        backgroundColor: nettoMensile === 0 && usciteMensili === 0 ? ['#e5e5ea', '#e5e5ea'] : ['#34c759', '#ff3b30'],
         borderWidth: 0,
       },
     ],
@@ -33,20 +33,20 @@ export default function Dashboard() {
     labels: ['Entrate Nette', 'Uscite'],
     datasets: [
       {
-        data: [35000, 12000], // Mock Annuale
-        backgroundColor: ['rgba(52, 199, 89, 0.8)', 'rgba(255, 59, 48, 0.8)'],
+        data: [0.1, 0.1], // Vuoto Iniziale
+        backgroundColor: ['rgba(229, 229, 234, 0.8)', 'rgba(229, 229, 234, 0.8)'],
         borderWidth: 0,
       },
     ],
   };
 
   const categorieSpesa = [
-    { nome: "Alimenti", totale: 2400, icona: "🛒" },
-    { nome: "Salute", totale: 550, icona: "💊" },
-    { nome: "Lavoro", totale: 1200, icona: "💼" },
-    { nome: "Viaggi", totale: 800, icona: "✈️" },
-    { nome: "Tasse", totale: 4000, icona: "🏦" },
-    { nome: "Imprevisti", totale: 300, icona: "⚠️" },
+    { nome: "Alimenti", totale: 0, icona: "🛒" },
+    { nome: "Salute", totale: 0, icona: "💊" },
+    { nome: "Lavoro", totale: 0, icona: "💼" },
+    { nome: "Viaggi", totale: 0, icona: "✈️" },
+    { nome: "Tasse", totale: 0, icona: "🏦" },
+    { nome: "Imprevisti", totale: 0, icona: "⚠️" },
   ];
 
   if (!isLoaded || !isSignedIn) {
