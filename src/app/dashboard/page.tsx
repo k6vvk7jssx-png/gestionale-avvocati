@@ -43,11 +43,20 @@ export default function Dashboard() {
 
   const categorieSpesa = [
     { nome: "Alimenti", totale: 0, icona: "🛒" },
+    { nome: "Ristoranti", totale: 0, icona: "🍽️" },
     { nome: "Salute", totale: 0, icona: "💊" },
     { nome: "Lavoro", totale: 0, icona: "💼" },
+    { nome: "Cancelleria", totale: 0, icona: "📎" },
+    { nome: "Software", totale: 0, icona: "💻" },
+    { nome: "Auto/Trasporti", totale: 0, icona: "🚗" },
+    { nome: "Carburante", totale: 0, icona: "⛽" },
     { nome: "Viaggi", totale: 0, icona: "✈️" },
     { nome: "Tasse", totale: 0, icona: "🏦" },
+    { nome: "Utenze", totale: 0, icona: "💡" },
+    { nome: "Formazione", totale: 0, icona: "📚" },
+    { nome: "Abbigliamento", totale: 0, icona: "👔" },
     { nome: "Imprevisti", totale: 0, icona: "⚠️" },
+    { nome: "Altro", totale: 0, icona: "📦" },
   ];
 
   if (!isLoaded || !isSignedIn) {

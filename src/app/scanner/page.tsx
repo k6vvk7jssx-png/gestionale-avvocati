@@ -193,11 +193,20 @@ export default function ScannerScontrini() {
                     <label style={{ display: "block", marginBottom: "0.5rem", marginTop: "1rem", fontSize: "0.9rem", opacity: 0.7 }}>Categoria di Spesa</label>
                     <select className="ios-input" style={{ appearance: "none" }}>
                         <option value="Alimenti">🛒 Alimenti</option>
+                        <option value="Ristoranti">🍽️ Ristoranti</option>
                         <option value="Salute">💊 Salute</option>
                         <option value="Lavoro">💼 Lavoro</option>
+                        <option value="Cancelleria">📎 Cancelleria</option>
+                        <option value="Software">💻 Software</option>
+                        <option value="Auto/Trasporti">🚗 Auto/Trasporti</option>
+                        <option value="Carburante">⛽ Carburante</option>
                         <option value="Viaggi">✈️ Viaggi</option>
                         <option value="Tasse">🏦 Tasse</option>
+                        <option value="Utenze">💡 Utenze</option>
+                        <option value="Formazione">📚 Formazione</option>
+                        <option value="Abbigliamento">👔 Abbigliamento</option>
                         <option value="Imprevisti">⚠️ Imprevisti</option>
+                        <option value="Altro">📦 Altro</option>
                     </select>
 
                     <label style={{ display: "block", marginBottom: "0.5rem", marginTop: "1rem", fontSize: "0.9rem", opacity: 0.7 }}>Descrizione (Opzionale)</label>
