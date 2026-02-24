@@ -1,14 +1,93 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useUser } from "@clerk/nextjs";
+import { createClient } from "@supabase/supabase-js";
+
+// Inizializza Supabase Client (usiamo anon key per lato client protetto da RLS)
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 export default function Cause() {
-    const { isLoaded, isSignedIn } = useUser();
+    const { isLoaded, isSignedIn, user } = useUser();
     const [showModal, setShowModal] = useState(false);
-    const [nuovaCausa, setNuovaCausa] = useState({ nome: "", compenso: "", data: "" });
+    const [causeList, setCauseList] = useState<any[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [isSaving, setIsSaving] = useState(false);
 
-    const causeList: any[] = []; // Partiamo da un elenco vuoto, si popolerà da DB
+    // Stato del form
+    const [nuovaCausa, setNuovaCausa] = useState({
+        nome: "",
+        compenso: "",
+        data: new Date().toISOString().split('T')[0],
+        tipologia_fiscale: "forfettario_15"
+    });
+
+    useEffect(() => {
+        if (isSignedIn && user) {
+            loadCause();
+        }
+    }, [isSignedIn, user]);
+
+    const loadCause = async () => {
+        try {
+            const { data, error } = await supabase
+                .from('cause')
+                .select('*')
+                .eq('user_id', user?.id)
+                .order('created_at', { ascending: false });
+
+            if (error) throw error;
+            setCauseList(data || []);
+        } catch (error) {
+            console.error('Errore nel caricamento pratiche:', error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleAggiungiCausa = async () => {
+        if (!nuovaCausa.nome || !nuovaCausa.compenso || !nuovaCausa.data) {
+            alert("Compila tutti i campi obbligatori");
+            return;
+        }
+
+        setIsSaving(true);
+        try {
+            const compensoFloat = parseFloat(nuovaCausa.compenso);
+            const dataToInsert = {
+                user_id: user?.id,
+                nome: nuovaCausa.nome,
+                compenso: compensoFloat,
+                data: nuovaCausa.data,
+                tipologia_fiscale: nuovaCausa.tipologia_fiscale,
+                stato: "incassata" // Di default l'entrata registrata è considerata incassata
+            };
+
+            const { error } = await supabase
+                .from('cause')
+                .insert([dataToInsert]);
+
+            if (error) throw error;
+
+            // Chiudi il modal, sbianca il form e ricarica i dati
+            setShowModal(false);
+            setNuovaCausa({
+                nome: "",
+                compenso: "",
+                data: new Date().toISOString().split('T')[0],
+                tipologia_fiscale: "forfettario_15"
+            });
+            await loadCause();
+
+        } catch (error: any) {
+            console.error('Errore nel salvataggio:', error);
+            alert("Errore nel salvare l'entrata: " + error.message);
+        } finally {
+            setIsSaving(false);
+        }
+    };
 
     if (!isLoaded || !isSignedIn) return null;
 
@@ -25,30 +104,39 @@ export default function Cause() {
                 </button>
             </div>
 
-            {causeList.map((causa) => (
-                <div key={causa.id} className="ios-card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" }}>
-                    <div>
-                        <h3 style={{ marginBottom: "4px" }}>{causa.nome}</h3>
-                        <span style={{ fontSize: "0.85rem", opacity: 0.6 }}>{causa.data}</span>
-                    </div>
-                    <div style={{ textAlign: "right" }}>
-                        <div style={{ fontSize: "1.1rem", fontWeight: "600", color: causa.stato === "incassata" ? "var(--success)" : "var(--foreground)" }}>
-                            €{causa.compenso}
-                        </div>
-                        <span style={{
-                            fontSize: "0.75rem",
-                            padding: "4px 8px",
-                            borderRadius: "12px",
-                            background: causa.stato === "vinta" ? "rgba(52,199,89,0.1)" : "rgba(0,122,255,0.1)",
-                            color: causa.stato === "vinta" ? "var(--success)" : "var(--primary)",
-                            textTransform: "uppercase",
-                            fontWeight: "600"
-                        }}>
-                            {causa.stato}
-                        </span>
-                    </div>
+            {isLoading ? (
+                <div style={{ textAlign: "center", padding: "2rem", opacity: 0.5 }}>Caricamento archivio...</div>
+            ) : causeList.length === 0 ? (
+                <div style={{ textAlign: "center", padding: "2rem", opacity: 0.5 }}>
+                    <div style={{ fontSize: "3rem", marginBottom: "1rem" }}>⚖️</div>
+                    Nessun compenso registrato. Premi il "+" in alto a destra per registrare la tua prima parcella o liquidazione.
                 </div>
-            ))}
+            ) : (
+                causeList.map((causa) => (
+                    <div key={causa.id} className="ios-card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" }}>
+                        <div>
+                            <h3 style={{ marginBottom: "4px" }}>{causa.nome}</h3>
+                            <span style={{ fontSize: "0.85rem", opacity: 0.6 }}>{causa.data}</span>
+                        </div>
+                        <div style={{ textAlign: "right" }}>
+                            <div style={{ fontSize: "1.1rem", fontWeight: "600", color: causa.stato === "incassata" ? "var(--success)" : "var(--foreground)" }}>
+                                €{causa.compenso}
+                            </div>
+                            <span style={{
+                                fontSize: "0.75rem",
+                                padding: "4px 8px",
+                                borderRadius: "12px",
+                                background: causa.stato === "incassata" ? "rgba(52,199,89,0.1)" : "rgba(0,122,255,0.1)",
+                                color: causa.stato === "incassata" ? "var(--success)" : "var(--primary)",
+                                textTransform: "uppercase",
+                                fontWeight: "600"
+                            }}>
+                                {causa.stato || "Registrata"}
+                            </span>
+                        </div>
+                    </div>
+                ))
+            )}
 
             {/* Spazio Vuoto */}
             <div style={{ height: "60px" }}></div>
@@ -65,28 +153,57 @@ export default function Cause() {
                         padding: "1.5rem",
                         borderTopLeftRadius: "20px",
                         borderTopRightRadius: "20px",
-                        animation: "slideUp 0.3s ease-out"
+                        animation: "slideUp 0.3s ease-out",
+                        maxHeight: "90vh",
+                        overflowY: "auto"
                     }}>
                         <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "1.5rem" }}>
                             <button style={{ background: "none", border: "none", color: "var(--primary)", fontSize: "1.1rem", cursor: "pointer" }} onClick={() => setShowModal(false)}>Annulla</button>
-                            <h3 style={{ margin: 0 }}>Nuova Causa</h3>
-                            <button style={{ background: "none", border: "none", color: "var(--primary)", fontWeight: "600", fontSize: "1.1rem", cursor: "pointer" }}>Salva</button>
+                            <h3 style={{ margin: 0 }}>Nuova Entrata</h3>
+                            <button style={{ background: "none", border: "none", color: "var(--primary)", fontWeight: "600", fontSize: "1.1rem", cursor: "pointer" }} onClick={handleAggiungiCausa}>Salva</button>
                         </div>
 
-                        <input type="text" placeholder="Nome Causa / Cliente" className="ios-input" />
-                        <input type="date" className="ios-input" />
-                        <input type="number" placeholder="Compenso Lordo Previsto (€)" className="ios-input" />
+                        <input
+                            type="text"
+                            placeholder="Nome Causa / Cliente / Fattura"
+                            className="ios-input"
+                            value={nuovaCausa.nome}
+                            onChange={(e) => setNuovaCausa({ ...nuovaCausa, nome: e.target.value })}
+                        />
+                        <input
+                            type="date"
+                            className="ios-input"
+                            value={nuovaCausa.data}
+                            onChange={(e) => setNuovaCausa({ ...nuovaCausa, data: e.target.value })}
+                        />
+                        <input
+                            type="number"
+                            placeholder="Importo Netto da Ricevere (€)"
+                            className="ios-input"
+                            value={nuovaCausa.compenso}
+                            onChange={(e) => setNuovaCausa({ ...nuovaCausa, compenso: e.target.value })}
+                        />
 
                         <label style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.9rem", opacity: 0.7 }}>Tipologia Fiscale</label>
-                        <select className="ios-input" style={{ appearance: "none" }}>
+                        <select
+                            className="ios-input"
+                            style={{ appearance: "none" }}
+                            value={nuovaCausa.tipologia_fiscale}
+                            onChange={(e) => setNuovaCausa({ ...nuovaCausa, tipologia_fiscale: e.target.value })}
+                        >
                             <option value="forfettario_5">Forfettario 5% (Startup / Primi 5 anni)</option>
                             <option value="forfettario_15">Forfettario 15% (Standard)</option>
                             <option value="ordinario">Ordinario (IRPEF + IVA)</option>
                             <option value="free">🆓 Free / Senza Tasse (Vendita Privata, Rimborso)</option>
                         </select>
 
-                        <button className="ios-btn-large" style={{ marginTop: "1rem" }} onClick={() => setShowModal(false)}>
-                            Aggiungi Entrata
+                        <button
+                            className="ios-btn-large"
+                            style={{ marginTop: "1rem" }}
+                            onClick={handleAggiungiCausa}
+                            disabled={isSaving}
+                        >
+                            {isSaving ? "Salvataggio in corso..." : "Aggiungi Entrata"}
                         </button>
                     </div>
                 </div>
