@@ -1,17 +1,28 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useUser } from "@clerk/nextjs";
+import { useUser, useSession } from "@clerk/nextjs";
 import { createClient } from "@supabase/supabase-js";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const supabase = createClient(supabaseUrl, supabaseKey);
 
 export default function Tasse() {
     const { isLoaded, isSignedIn, user } = useUser();
+    const { session } = useSession();
 
-    // Stato per la modalità di calcolo (Automatica da DB vs Manuale)
+    const getSupabase = () => {
+        return createClient(supabaseUrl, supabaseKey, {
+            global: {
+                fetch: async (url, options = {}) => {
+                    const clerkToken = await session?.getToken({ template: 'supabase' });
+                    const headers = new Headers(options?.headers);
+                    if (clerkToken) headers.set('Authorization', `Bearer ${clerkToken}`);
+                    return fetch(url, { ...options, headers, cache: 'no-store' });
+                },
+            },
+        });
+    };
     const [mod, setMod] = useState<"auto" | "manual">("auto");
 
     // Stati per Calcolatore Manuale
@@ -38,6 +49,7 @@ export default function Tasse() {
     const calcolaTasseAnnualiReali = async () => {
         setIsLoadingDati(true);
         try {
+            const supabase = getSupabase();
             // 1. Prendi tutte le Cause dell'anno corrente
             const currentYear = new Date().getFullYear();
             const startOfYear = `${currentYear}-01-01`;

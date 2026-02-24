@@ -1,17 +1,30 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useUser } from "@clerk/nextjs";
+import { useUser, useSession } from "@clerk/nextjs";
 import { createClient } from "@supabase/supabase-js";
 
 // Inizializza Supabase Client (usiamo anon key per lato client protetto da RLS)
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const supabase = createClient(supabaseUrl, supabaseKey);
 
 export default function Cause() {
     const { isLoaded, isSignedIn, user } = useUser();
+    const { session } = useSession();
     const [showModal, setShowModal] = useState(false);
+
+    const getSupabase = () => {
+        return createClient(supabaseUrl, supabaseKey, {
+            global: {
+                fetch: async (url, options = {}) => {
+                    const clerkToken = await session?.getToken({ template: 'supabase' });
+                    const headers = new Headers(options?.headers);
+                    if (clerkToken) headers.set('Authorization', `Bearer ${clerkToken}`);
+                    return fetch(url, { ...options, headers, cache: 'no-store' });
+                },
+            },
+        });
+    };
     const [causeList, setCauseList] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
@@ -32,6 +45,7 @@ export default function Cause() {
 
     const loadCause = async () => {
         try {
+            const supabase = getSupabase();
             const { data, error } = await supabase
                 .from('cause')
                 .select('*')
@@ -64,7 +78,7 @@ export default function Cause() {
 
         setIsSaving(true);
         try {
-            const compensoFloat = parseFloat(nuovaCausa.compenso);
+            const compensoFloat = parseFloat(String(nuovaCausa.compenso).replace(',', '.'));
 
             // Payload allineato ESATTAMENTE alle colonne generate nello script SQL iniziale 
             const dataToInsert = {
@@ -76,6 +90,7 @@ export default function Cause() {
                 stato: "incassata"
             };
 
+            const supabase = getSupabase();
             const { error } = await supabase
                 .from('cause')
                 .insert([dataToInsert]);
@@ -108,6 +123,7 @@ export default function Cause() {
 
         setIsSaving(true);
         try {
+            const supabase = getSupabase();
             const { error } = await supabase
                 .from('cause')
                 .delete()

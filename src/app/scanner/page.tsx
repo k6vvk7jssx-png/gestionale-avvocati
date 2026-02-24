@@ -1,16 +1,40 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { useUser } from "@clerk/nextjs";
+import { useRouter } from "next/navigation";
+import { useUser, useSession } from "@clerk/nextjs";
 import { createClient } from "@supabase/supabase-js";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const supabase = createClient(supabaseUrl, supabaseKey);
 
 export default function ScannerScontrini() {
     const { isLoaded, isSignedIn, user } = useUser();
+    const { session } = useSession();
+    const router = useRouter();
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const parseImporto = (val: string | number) => {
+        if (!val) return 0;
+        if (typeof val === 'number') return val;
+        // Se l'utente scrive 1.500,50 rimuove i punti e la virgola diventa punto
+        let cleaned = val.replace(/\./g, '').replace(',', '.');
+        const parsed = parseFloat(cleaned);
+        return isNaN(parsed) ? 0 : parsed;
+    };
+
+    const getSupabase = () => {
+        return createClient(supabaseUrl, supabaseKey, {
+            global: {
+                fetch: async (url, options = {}) => {
+                    const clerkToken = await session?.getToken({ template: 'supabase' });
+                    const headers = new Headers(options?.headers);
+                    if (clerkToken) headers.set('Authorization', `Bearer ${clerkToken}`);
+                    return fetch(url, { ...options, headers, cache: 'no-store' });
+                },
+            },
+        });
+    };
 
     const [file, setFile] = useState<File | null>(null);
     const [preview, setPreview] = useState<string | null>(null);
@@ -78,18 +102,27 @@ export default function ScannerScontrini() {
 
         setIsSaving(true);
         try {
+            const supabase = getSupabase();
+            const now = new Date();
+            const data_transazione = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
+            const importoCorretto = parseImporto(spesaManuale.importo);
+
             const { error } = await supabase.from('transazioni').insert({
                 user_id: user?.id,
                 tipo: 'uscita',
-                importo: parseFloat(spesaManuale.importo),
+                importo: importoCorretto,
                 categoria: spesaManuale.categoria,
-                descrizione: spesaManuale.descrizione
+                descrizione: spesaManuale.descrizione,
+                data_transazione: data_transazione
             });
 
             if (error) throw error;
 
-            alert("Spesa registrata con successo a Bilancio!");
+            alert("Spesa registrata! La Dashboard si sta aggiornando...");
             setSpesaManuale({ importo: "", categoria: "Altro", descrizione: "" });
+            router.refresh();
+            router.push('/dashboard');
         } catch (err: any) {
             console.error(err);
             alert("Si è verificato un errore nel salvataggio. Controlla i permessi o le policy: " + err.message);
@@ -102,20 +135,29 @@ export default function ScannerScontrini() {
         if (!scannedData) return;
         setIsSaving(true);
         try {
+            const supabase = getSupabase();
+            const now = new Date();
+            const data_transazione = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
+            const importoCorretto = parseImporto(scannedData.importo);
+
             const { error } = await supabase.from('transazioni').insert({
                 user_id: user?.id,
                 tipo: 'uscita',
-                importo: scannedData.importo,
+                importo: importoCorretto,
                 categoria: scannedData.categoria,
-                descrizione: "Auto-Scansione AI"
+                descrizione: "Auto-Scansione AI",
+                data_transazione: data_transazione
             });
 
             if (error) throw error;
 
-            alert("Scontrino AI registrato con successo!");
+            alert("Scontrino AI registrato! La Dashboard si sta aggiornando...");
             setFile(null);
             setPreview(null);
             setScannedData(null);
+            router.refresh();
+            router.push('/dashboard');
         } catch (err: any) {
             console.error(err);
             alert("Si è verificato un errore nel salvataggio scanner. " + err.message);
@@ -241,10 +283,10 @@ export default function ScannerScontrini() {
 
                     <label style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.9rem", opacity: 0.7 }}>Importo (€)</label>
                     <input
-                        type="number"
+                        type="text"
+                        inputMode="decimal"
                         placeholder="Es. 45.50"
                         className="ios-input"
-                        step="0.01"
                         value={spesaManuale.importo}
                         onChange={(e) => setSpesaManuale({ ...spesaManuale, importo: e.target.value })}
                     />

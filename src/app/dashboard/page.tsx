@@ -3,14 +3,13 @@
 import { useState, useEffect } from "react";
 import { ArcElement, Chart as ChartJS, Legend, Tooltip } from "chart.js";
 import { Pie } from "react-chartjs-2";
-import { useUser } from "@clerk/nextjs";
+import { useUser, useSession } from "@clerk/nextjs";
 import { createClient } from "@supabase/supabase-js";
 
 ChartJS.register(ArcElement, Tooltip, Legend);
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const supabase = createClient(supabaseUrl, supabaseKey);
 
 // Definisco le categorie fuori dal componente per non ricrearle
 const categorieIniziali = [
@@ -34,7 +33,21 @@ const categorieIniziali = [
 
 export default function Dashboard() {
   const { isLoaded, isSignedIn, user } = useUser();
+  const { session } = useSession();
   const [selectedCategory, setSelectedCategory] = useState<{ nome: string, totale: number, icona: string } | null>(null);
+
+  const getSupabase = () => {
+    return createClient(supabaseUrl, supabaseKey, {
+      global: {
+        fetch: async (url, options = {}) => {
+          const clerkToken = await session?.getToken({ template: 'supabase' });
+          const headers = new Headers(options?.headers);
+          if (clerkToken) headers.set('Authorization', `Bearer ${clerkToken}`);
+          return fetch(url, { ...options, headers, cache: 'no-store' });
+        },
+      },
+    });
+  };
 
   // Dati Dinamici
   const [entrateMensili, setEntrateMensili] = useState(0);
@@ -51,16 +64,17 @@ export default function Dashboard() {
 
   const caricaDatiMensili = async () => {
     const today = new Date();
-    const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1).toISOString();
+    const startOfMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-01`;
     // Lte a now per sicurezza
 
     try {
+      const supabase = getSupabase();
       // 1. Carica le Cause
       const { data: cause, error: errCause } = await supabase
         .from('cause')
         .select('*')
         .eq('user_id', user?.id)
-        .gte('data_sentenza', startOfMonth.split('T')[0]);
+        .gte('data_sentenza', startOfMonth);
 
       if (errCause) {
         console.error("Errore fetch cause mensili: ", errCause.message);
@@ -96,7 +110,7 @@ export default function Dashboard() {
         .select('id, importo, categoria, descrizione, data_transazione, created_at')
         .eq('user_id', user?.id)
         .eq('tipo', 'uscita')
-        .gte('data_transazione', startOfMonth.split('T')[0])
+        .gte('data_transazione', startOfMonth)
         .order('created_at', { ascending: false });
 
       let totUscite = 0;
@@ -131,6 +145,7 @@ export default function Dashboard() {
     if (!confirmed) return;
 
     try {
+      const supabase = getSupabase();
       const { error } = await supabase
         .from('transazioni')
         .delete()
