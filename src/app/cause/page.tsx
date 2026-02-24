@@ -8,11 +8,7 @@ export default function Cause() {
     const [showModal, setShowModal] = useState(false);
     const [nuovaCausa, setNuovaCausa] = useState({ nome: "", compenso: "", data: "" });
 
-    const causeList = [
-        { id: 1, nome: "Rossi vs. INPS", data: "2024-05-10", compenso: 4500, stato: "vinta" },
-        { id: 2, nome: "Divorzio Bianchi", data: "2024-06-22", compenso: 2100, stato: "aperta" },
-        { id: 3, nome: "Condominio Roma", data: "2024-03-15", compenso: 1200, stato: "incassata" },
-    ];
+    const causeList: any[] = []; // Partiamo da un elenco vuoto, si popolerà da DB
 
     if (!isLoaded || !isSignedIn) return null;
 
