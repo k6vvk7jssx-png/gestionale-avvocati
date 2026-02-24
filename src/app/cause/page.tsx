@@ -99,6 +99,33 @@ export default function Cause() {
         }
     };
 
+    const handleDeleteCausa = async (id: string, e: React.MouseEvent) => {
+        // Previene l'apertura eventuale della causa se la riga intera fosse cliccabile
+        e.stopPropagation();
+
+        const confirmed = window.confirm("Sei sicuro di voler eliminare definitivamente questa registrazione?");
+        if (!confirmed) return;
+
+        setIsSaving(true);
+        try {
+            const { error } = await supabase
+                .from('cause')
+                .delete()
+                .eq('id', id)
+                .eq('user_id', user?.id);
+
+            if (error) throw error;
+
+            // Ricarica la lista per mostrare la riga rimossa
+            await loadCause();
+        } catch (error: any) {
+            console.error('Errore nella cancellazione:', error);
+            alert("Impossibile eliminare: " + error.message);
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
     if (!isLoaded || !isSignedIn) return null;
 
     return (
@@ -123,14 +150,23 @@ export default function Cause() {
                 </div>
             ) : (
                 causeList.map((causa) => (
-                    <div key={causa.id} className="ios-card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" }}>
+                    <div key={causa.id} className="ios-card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                         <div>
                             <h3 style={{ marginBottom: "4px" }}>{causa.nome}</h3>
                             <span style={{ fontSize: "0.85rem", opacity: 0.6 }}>{causa.data}</span>
                         </div>
-                        <div style={{ textAlign: "right" }}>
-                            <div style={{ fontSize: "1.1rem", fontWeight: "600", color: causa.stato === "incassata" ? "var(--success)" : "var(--foreground)" }}>
-                                €{causa.compenso}
+                        <div style={{ textAlign: "right", display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                                <div style={{ fontSize: "1.1rem", fontWeight: "600", color: causa.stato === "incassata" ? "var(--success)" : "var(--foreground)" }}>
+                                    €{causa.compenso}
+                                </div>
+                                <button
+                                    onClick={(e) => handleDeleteCausa(causa.id, e)}
+                                    style={{ background: "none", border: "none", color: "var(--destructive)", fontSize: "1.2rem", cursor: "pointer", padding: "5px" }}
+                                    title="Elimina"
+                                >
+                                    🗑️
+                                </button>
                             </div>
                             <span style={{
                                 fontSize: "0.75rem",
@@ -139,7 +175,8 @@ export default function Cause() {
                                 background: causa.stato === "incassata" ? "rgba(52,199,89,0.1)" : "rgba(0,122,255,0.1)",
                                 color: causa.stato === "incassata" ? "var(--success)" : "var(--primary)",
                                 textTransform: "uppercase",
-                                fontWeight: "600"
+                                fontWeight: "600",
+                                marginTop: "5px"
                             }}>
                                 {causa.stato || "Registrata"}
                             </span>

@@ -211,24 +211,18 @@ export default function Dashboard() {
 
       {/* Grid Card Stile Apple Wallet */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
-        {categorieSpesa.filter(cat => cat.totale > 0).length === 0 ? (
-          <div style={{ gridColumn: "1 / -1", textAlign: "center", opacity: 0.5, padding: "2rem" }}>
-            Nessuna spesa registrata per questo mese.
+        {categorieSpesa.map((cat, idx) => (
+          <div
+            key={idx}
+            className="ios-card"
+            style={{ padding: "1rem", marginBottom: "0", cursor: "pointer" }}
+            onClick={() => setSelectedCategory(cat)}
+          >
+            <div style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>{cat.icona}</div>
+            <div style={{ fontSize: "1rem", fontWeight: "600" }}>{cat.nome}</div>
+            <div style={{ fontSize: "1.1rem", opacity: 0.8 }}>€{cat.totale.toFixed(2)}</div>
           </div>
-        ) : (
-          categorieSpesa.filter(cat => cat.totale > 0).map((cat, idx) => (
-            <div
-              key={idx}
-              className="ios-card"
-              style={{ padding: "1rem", marginBottom: "0", cursor: "pointer" }}
-              onClick={() => setSelectedCategory(cat)}
-            >
-              <div style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>{cat.icona}</div>
-              <div style={{ fontSize: "1rem", fontWeight: "600" }}>{cat.nome}</div>
-              <div style={{ fontSize: "1.1rem", opacity: 0.8 }}>€{cat.totale.toFixed(2)}</div>
-            </div>
-          ))
-        )}
+        ))}
       </div>
 
       {/* Bottom Sheet Modale */}
