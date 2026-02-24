@@ -9,6 +9,7 @@ ChartJS.register(ArcElement, Tooltip, Legend);
 
 export default function Dashboard() {
   const { isLoaded, isSignedIn, user } = useUser();
+  const [selectedCategory, setSelectedCategory] = useState<{ nome: string, totale: number, icona: string } | null>(null);
 
   // Dati (Inizialmente a zero, pronti per essere popolati via DB Supabase)
   const entrateMensili = 0;
@@ -102,13 +103,50 @@ export default function Dashboard() {
       {/* Grid Card Stile Apple Wallet */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
         {categorieSpesa.map((cat, idx) => (
-          <div key={idx} className="ios-card" style={{ padding: "1rem", marginBottom: "0", cursor: "pointer" }}>
+          <div
+            key={idx}
+            className="ios-card"
+            style={{ padding: "1rem", marginBottom: "0", cursor: "pointer" }}
+            onClick={() => setSelectedCategory(cat)}
+          >
             <div style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>{cat.icona}</div>
             <div style={{ fontSize: "1rem", fontWeight: "600" }}>{cat.nome}</div>
             <div style={{ fontSize: "1.1rem", opacity: 0.8 }}>€{cat.totale}</div>
           </div>
         ))}
       </div>
+
+      {/* Bottom Sheet Modale */}
+      {selectedCategory && (
+        <div className="bottom-sheet-overlay" onClick={() => setSelectedCategory(null)}>
+          <div className="bottom-sheet" onClick={(e) => e.stopPropagation()}>
+            <div className="bottom-sheet-handle"></div>
+            <button className="bottom-sheet-close" onClick={() => setSelectedCategory(null)}>&times;</button>
+
+            <div style={{ textAlign: "center", marginTop: "1rem" }}>
+              <div style={{ fontSize: "4rem", marginBottom: "1rem" }}>{selectedCategory.icona}</div>
+              <h2>Dettaglio {selectedCategory.nome}</h2>
+              <p style={{ fontSize: "1.5rem", fontWeight: "bold", color: "var(--primary)" }}>
+                Totale: €{selectedCategory.totale}
+              </p>
+
+              <div style={{ marginTop: "2rem", padding: "1.5rem", background: "var(--background)", borderRadius: "12px", textAlign: "left" }}>
+                <p style={{ opacity: 0.6, fontSize: "0.9rem", textAlign: "center" }}>
+                  Nessuna transazione recente trovata in questa categoria. Le tue spese appariranno qui man mano che scansionerai gli scontrini.
+                </p>
+              </div>
+
+              <button
+                className="ios-btn-large"
+                style={{ marginTop: "2rem" }}
+                onClick={() => setSelectedCategory(null)}
+              >
+                Chiudi
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
