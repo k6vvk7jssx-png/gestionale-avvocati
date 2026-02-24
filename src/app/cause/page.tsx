@@ -77,8 +77,14 @@ export default function Cause() {
                         <input type="date" className="ios-input" />
                         <input type="number" placeholder="Compenso Lordo Previsto (€)" className="ios-input" />
 
+                        <label style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.9rem", opacity: 0.7 }}>Tipologia Fiscale</label>
+                        <select className="ios-input" style={{ appearance: "none" }}>
+                            <option value="Imponibile">Soggetta a Tasse (Compenso standard)</option>
+                            <option value="Senza Tasse">🆓 Senza Tasse (Esente / Rimborso)</option>
+                        </select>
+
                         <button className="ios-btn-large" style={{ marginTop: "1rem" }} onClick={() => setShowModal(false)}>
-                            Aggiungi
+                            Aggiungi Entrata
                         </button>
                     </div>
                 </div>
