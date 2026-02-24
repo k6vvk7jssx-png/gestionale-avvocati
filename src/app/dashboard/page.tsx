@@ -75,12 +75,16 @@ export default function Dashboard() {
 
           const tipoFiscale = c.tipologia_fiscale || "forfettario_15"; // Fallback se colonna assente
 
-          if (tipoFiscale === "forfettario_5") {
-            totTasseAccantonate += (importo * 0.78 * 0.05) + (importo * 0.78 * 0.17); // Irpef + Cassa
-          } else if (tipoFiscale === "forfettario_15") {
-            totTasseAccantonate += (importo * 0.78 * 0.15) + (importo * 0.78 * 0.17);
+          if (tipoFiscale === "forfettario_5" || tipoFiscale === "forfettario_15") {
+            const imponibile = importo * 0.78;
+            const aliquota = tipoFiscale === "forfettario_5" ? 0.05 : 0.15;
+            totTasseAccantonate += (imponibile * aliquota) + (imponibile * 0.17);
           } else if (tipoFiscale === "ordinario") {
-            totTasseAccantonate += importo * 0.46; // Trattenuta media fissa usata nel tool
+            const trattenuta = importo * 0.46;
+            totTasseAccantonate += (trattenuta * 0.6) + (trattenuta * 0.4); // Che equivale di fatto alla trattenuta totale
+          } else if (tipoFiscale === "free") {
+            // Nessuna tassa per regime Free/Rimborso
+            totTasseAccantonate += 0;
           }
         });
       }
