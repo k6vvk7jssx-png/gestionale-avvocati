@@ -58,14 +58,8 @@ export default function ScannerScontrini() {
                 alert("Errore nella scansione: " + data.error);
             }
         } catch (err) {
-            // Fallback Mock se l'API non è ancora pronta
-            setTimeout(() => {
-                setScannedData({
-                    importo: 45.20,
-                    categoria: "Salute",
-                    testoEstratto: "Farmacia Rossi\nParacetamolo €6.50\nSciroppo €8.50\nVisita €30.20"
-                });
-            }, 2000);
+            console.error(err);
+            alert("Errore nella comunicazione con l'Intelligenza Artificiale. Verifica la tua chiave API OCR.space su Vercel o la tua connessione.");
         } finally {
             setIsScanning(false);
         }
