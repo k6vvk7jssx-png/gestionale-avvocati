@@ -196,6 +196,7 @@ export default function ScannerScontrini() {
                         <option value="Carburante">⛽ Carburante</option>
                         <option value="Viaggi">✈️ Viaggi</option>
                         <option value="Tasse">🏦 Tasse</option>
+                        <option value="Senza Tasse">🆓 Senza Tasse</option>
                         <option value="Utenze">💡 Utenze</option>
                         <option value="Formazione">📚 Formazione</option>
                         <option value="Abbigliamento">👔 Abbigliamento</option>

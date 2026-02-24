@@ -52,6 +52,7 @@ export default function Dashboard() {
     { nome: "Carburante", totale: 0, icona: "⛽" },
     { nome: "Viaggi", totale: 0, icona: "✈️" },
     { nome: "Tasse", totale: 0, icona: "🏦" },
+    { nome: "Senza Tasse", totale: 0, icona: "🆓" },
     { nome: "Utenze", totale: 0, icona: "💡" },
     { nome: "Formazione", totale: 0, icona: "📚" },
     { nome: "Abbigliamento", totale: 0, icona: "👔" },
