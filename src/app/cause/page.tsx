@@ -79,8 +79,10 @@ export default function Cause() {
 
                         <label style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.9rem", opacity: 0.7 }}>Tipologia Fiscale</label>
                         <select className="ios-input" style={{ appearance: "none" }}>
-                            <option value="Imponibile">Soggetta a Tasse (Compenso standard)</option>
-                            <option value="Senza Tasse">🆓 Senza Tasse (Esente / Rimborso)</option>
+                            <option value="forfettario_5">Forfettario 5% (Startup / Primi 5 anni)</option>
+                            <option value="forfettario_15">Forfettario 15% (Standard)</option>
+                            <option value="ordinario">Ordinario (IRPEF + IVA)</option>
+                            <option value="free">🆓 Free / Senza Tasse (Vendita Privata, Rimborso)</option>
                         </select>
 
                         <button className="ios-btn-large" style={{ marginTop: "1rem" }} onClick={() => setShowModal(false)}>
