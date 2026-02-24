@@ -15,7 +15,13 @@ export default function Tasse() {
         return createClient(supabaseUrl, supabaseKey, {
             global: {
                 fetch: async (url, options = {}) => {
-                    const clerkToken = await session?.getToken({ template: 'supabase' });
+                    let clerkToken;
+                    try {
+                        clerkToken = await session?.getToken({ template: 'supabase' });
+                    } catch (e) {
+                        console.warn("Nessun template 'supabase' trovato in Clerk, uso token default");
+                        clerkToken = await session?.getToken();
+                    }
                     const headers = new Headers(options?.headers);
                     if (clerkToken) headers.set('Authorization', `Bearer ${clerkToken}`);
                     return fetch(url, { ...options, headers, cache: 'no-store' });
