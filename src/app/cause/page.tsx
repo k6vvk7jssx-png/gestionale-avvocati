@@ -72,7 +72,7 @@ export default function Cause() {
                 nome_causa: nuovaCausa.nome,
                 compenso_lordo: compensoFloat,
                 data_sentenza: nuovaCausa.data,
-                // tipologia_fiscale: nuovaCausa.tipologia_fiscale, <--- Disabilitato finché non crei la colonna DB
+                tipologia_fiscale: nuovaCausa.tipologia_fiscale,
                 stato: "incassata"
             };
 
