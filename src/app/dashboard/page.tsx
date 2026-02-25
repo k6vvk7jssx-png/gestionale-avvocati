@@ -111,13 +111,18 @@ export default function Dashboard() {
       }
 
       // 2. Carica le Uscite (Transazioni)
-      const { data: uscite } = await supabase
+      const { data: uscite, error: errUscite } = await supabase
         .from('transazioni')
         .select('id, importo, categoria, descrizione, data_transazione, created_at')
         .eq('user_id', user?.id)
         .eq('tipo', 'uscita')
         .gte('data_transazione', startOfMonth)
         .order('created_at', { ascending: false });
+
+      if (errUscite) {
+        console.error("Errore fetch uscite mensili: ", errUscite.message);
+        alert("Errore nel caricamento spese: " + errUscite.message);
+      }
 
       let totUscite = 0;
       const nuoveCategorie = categorieIniziali.map(c => ({ ...c, totale: 0 })); // Reset
