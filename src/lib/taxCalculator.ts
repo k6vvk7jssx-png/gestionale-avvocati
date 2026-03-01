@@ -29,6 +29,8 @@ export function calculateInvoice(
 
     let iva22 = 0;
     let ritenutaAcconto20 = 0;
+
+    // Totale Fattura Lordo = Compenso + Spese 15% + CPA 4% (+ eventuale IVA)
     let totaleFatturaLordo = compensoBase + speseGenerali15 + cpa4;
     let nettoCalcolato = totaleFatturaLordo;
 
@@ -50,18 +52,18 @@ export function calculateInvoice(
             totaleFatturaLordo += iva22;
         }
         if (applicaRitenuta) {
-            // La ritenuta si applica SOLO sul compenso base puro (niente spese/cpa) in molti casi, 
-            // ma fiscalmente per gli avvocati si applica su (Compenso + Spese Generali).
-            // Aderiamo al prompt: "Applica Ritenuta 20% (solo sul compenso base)" come da istruzioni utente.
+            // Regola 2026 Utente: La ritenuta d'acconto 20% si calcola SOLO sul compenso base puro.
             ritenutaAcconto20 = compensoBase * 0.20;
         }
 
+        // Netto in tasca = Lordo Totale (inclusa iva) - Ritenuta
         nettoCalcolato = totaleFatturaLordo - ritenutaAcconto20;
     } else {
-        // Forfettario (5% o 15% ai fini IRPEF, ma in fattura non hanno IVA né Ritenuta)
+        // Forfettario (5% o 15% ai fini IRPEF)
+        // In fattura NON hanno IVA e NON hanno Ritenuta.
         iva22 = 0;
         ritenutaAcconto20 = 0;
-        nettoCalcolato = totaleFatturaLordo; // Netto in fattura = Lordo in fattura, le tasse si pagano dopo
+        nettoCalcolato = totaleFatturaLordo; // Il cliente paga tutto il lordo (no trattenute alla fonte)
     }
 
     return {

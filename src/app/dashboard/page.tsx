@@ -63,8 +63,11 @@ export default function Dashboard() {
   const [transazioniMese, setTransazioniMese] = useState<any[]>([]);
 
   const [sogliaFaccina, setSogliaFaccina] = useState(40);
+  const [scaglioneIrpef, setScaglioneIrpef] = useState<number>(23); // Default lowest bracket
+  const [regimeProfilo, setRegimeProfilo] = useState<string>("forfettario_15");
 
   useEffect(() => {
+    // Si cerca prima nel local storage come fallback rapido
     const savedSoglia = localStorage.getItem("soglia_faccina");
     if (savedSoglia) setSogliaFaccina(Number(savedSoglia));
 
@@ -76,10 +79,27 @@ export default function Dashboard() {
   const caricaDatiMensili = async () => {
     const today = new Date();
     const startOfMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-01`;
-    // Lte a now per sicurezza
 
     try {
       const supabase = getSupabase();
+
+      // 0. Carica Profilo Utente (Regime, Faccina, Irpef)
+      const { data: profile, error: errProfile } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('user_id', user?.id)
+        .single();
+
+      let currentScaglione = 23;
+      if (profile && !errProfile) {
+        if (profile.sad_face_threshold) setSogliaFaccina(profile.sad_face_threshold);
+        if (profile.expected_irpef_bracket) {
+          setScaglioneIrpef(parseInt(profile.expected_irpef_bracket));
+          currentScaglione = parseInt(profile.expected_irpef_bracket);
+        }
+        if (profile.regime_fiscale) setRegimeProfilo(profile.regime_fiscale);
+      }
+
       // 1. Carica le Cause
       const { data: cause, error: errCause } = await supabase
         .from('cause')
@@ -157,28 +177,31 @@ export default function Dashboard() {
           const tipoFiscale = c.tipologia_fiscale || "forfettario_15";
 
           if (tipoFiscale === "forfettario_5" || tipoFiscale === "forfettario_15") {
-            const imponibile = c.compenso_base ? c.compenso_base * 0.78 : Number(c.compenso_lordo || 0) * 0.78;
-            const aliquota = tipoFiscale === "forfettario_5" ? 0.05 : 0.15;
-            totTasseAccantonate += (imponibile * aliquota) + (imponibile * 0.17); // Irpef + Cassa Semplificata
+            const compensoPuro = Number(c.compenso_base || c.compenso_lordo || 0);
+            const speseGen = compensoPuro * 0.15;
+            const redditoLordo = (compensoPuro + speseGen) * 0.78;
+
+            const cassaSoggettiva = redditoLordo * 0.17;
+            const aliquotaSostitutiva = tipoFiscale === "forfettario_5" ? 0.05 : 0.15;
+            const impostaSostitutiva = redditoLordo * aliquotaSostitutiva;
+
+            totTasseAccantonate += (cassaSoggettiva + impostaSostitutiva);
+
           } else if (tipoFiscale === "ordinario") {
-            // Se Usa il nuovo sistema, usiamo i pre-calcolati, tranne per l'IRPEF base
-            // Nell'ordinario le spese deducibili abbassano l'imponibile
-            const lordo = Number(c.compenso_base || c.compenso_lordo || 0);
+            const compensoPuro = Number(c.compenso_base || c.compenso_lordo || 0);
+            const speseGen = compensoPuro * 0.15;
+            const fatturatoAiFiniTasse = compensoPuro + speseGen;
 
-            // Impatto deduzioni (Spalmiamo la deduzione del mese pro-quota sull'entrata, ma per la dashboard facciamo un calcolo brutale mensile)
-            // Logica semplificata dashboard: 
-            // - Si calcolano le tasse lorde sulle entrate ordinarie del mese
-            // - Si sottraggono le tasse risparmiate dalle deduzioni del mese (approx 43% marginale)
-            const trattenutaIniziale = lordo * 0.46; // (Irpef + Cassa indicativa)
-            const risparmioFiscale = totUsciteDeducibili > 0 ? (totUsciteDeducibili * 0.46) : 0;
+            // Spalmiamo la deduzione del mese pro-quota per la visualizzazione mensile
+            const utileLordo = Math.max(0, fatturatoAiFiniTasse - totUsciteDeducibili);
 
-            // Non fa mai scendere le tasse sotto zero
-            let tasseDaAccantonareReali = trattenutaIniziale - risparmioFiscale;
-            if (tasseDaAccantonareReali < 0) tasseDaAccantonareReali = 0;
+            const cassaSoggettiva = utileLordo * 0.17;
+            const percentualeIrpef = currentScaglione / 100.0;
+            const irpef = utileLordo * percentualeIrpef;
 
-            totTasseAccantonate += tasseDaAccantonareReali;
+            totTasseAccantonate += (cassaSoggettiva + irpef);
 
-            // Evita di ri-calcolare la deduzione per fatture successive nello stesso mese per non sballare
+            // Evita di ri-sottrarre le stesse spese per le successive fatture dello stesso mese
             totUsciteDeducibili = 0;
 
           } else if (tipoFiscale === "free") {
@@ -186,6 +209,9 @@ export default function Dashboard() {
           }
         });
       }
+
+      // Applica un safety cap
+      if (totTasseAccantonate < 0) totTasseAccantonate = 0;
 
       setEntrateMensili(totEntrate);
       setTasseMensiliAccantonate(totTasseAccantonate);
@@ -221,7 +247,9 @@ export default function Dashboard() {
   };
 
   const nettoMensile = entrateMensili - usciteMensili - tasseMensiliAccantonate;
-  const nettoPuro = nettoMensile > 0 ? nettoMensile : 0.1;
+  // Per il grafico a torta, non possiamo avere valori negativi. 
+  // Se le uscite superano le entrate, il "netto puro" mostrato nella torta deve essere semplicemente 0 (o un minimo per non rompere il rendering)
+  const nettoPuroGrafico = Math.max(0.1, nettoMensile);
 
   // Percentuale allarme su Uscite rispetto alle Entrate (ma escludendo le tasse fisse dal calcolo di "sto spendendo troppo")
   const entrateVerificabili = entrateMensili > 0 ? entrateMensili : 1;
@@ -232,8 +260,8 @@ export default function Dashboard() {
     labels: ['Netto Pulito', 'Spese', 'Tasse Accantonate'],
     datasets: [
       {
-        data: [nettoPuro, usciteMensili > 0 ? usciteMensili : 0.1, tasseMensiliAccantonate > 0 ? tasseMensiliAccantonate : 0.1],
-        backgroundColor: (nettoPuro === 0.1 && usciteMensili === 0 && tasseMensiliAccantonate === 0)
+        data: [nettoPuroGrafico, usciteMensili > 0 ? usciteMensili : 0.1, tasseMensiliAccantonate > 0 ? tasseMensiliAccantonate : 0.1],
+        backgroundColor: (nettoPuroGrafico === 0.1 && usciteMensili === 0 && tasseMensiliAccantonate === 0)
           ? ['#e5e5ea', '#e5e5ea', '#e5e5ea']
           : ['#34c759', '#ff3b30', '#ff9f0a'],
         borderWidth: 0,
