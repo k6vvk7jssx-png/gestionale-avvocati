@@ -166,24 +166,30 @@ export default function Impostazioni() {
                     <div style={{ marginTop: "1rem", padding: "10px", background: "rgba(255,149,0,0.05)", borderRadius: "12px", border: "1px solid var(--warning)" }}>
                         <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: "600" }}>Scaglione IRPEF Marginale</label>
                         <p style={{ fontSize: "0.85rem", opacity: 0.8, marginBottom: "1rem" }}>Utilizzato per stimare le tasse nella Dashboard dopo aver sottratto spese deducibili e cassa.</p>
-                        <div className="ios-select-group">
+                        <div className="ios-select-group" style={{ flexDirection: 'column', gap: '8px' }}>
                             <button
                                 className={`ios-segment ${scaglioneIrpef === '23' ? 'active' : ''}`}
                                 onClick={() => setScaglioneIrpef('23')}
+                                style={{ textAlign: 'left', padding: '12px' }}
                             >
-                                23%
+                                <div style={{ fontWeight: 'bold' }}>23%</div>
+                                <div style={{ fontSize: '0.8rem', opacity: 0.8, marginTop: '4px' }}>1° Scaglione: Da 0 a 28.000 €</div>
                             </button>
                             <button
                                 className={`ios-segment ${scaglioneIrpef === '33' ? 'active' : ''}`}
                                 onClick={() => setScaglioneIrpef('33')}
+                                style={{ textAlign: 'left', padding: '12px' }}
                             >
-                                33% (Lega 35)
+                                <div style={{ fontWeight: 'bold' }}>33%</div>
+                                <div style={{ fontSize: '0.8rem', opacity: 0.8, marginTop: '4px' }}>2° Scaglione: Da 28.001 a 50.000 €</div>
                             </button>
                             <button
                                 className={`ios-segment ${scaglioneIrpef === '43' ? 'active' : ''}`}
                                 onClick={() => setScaglioneIrpef('43')}
+                                style={{ textAlign: 'left', padding: '12px' }}
                             >
-                                43%
+                                <div style={{ fontWeight: 'bold' }}>43%</div>
+                                <div style={{ fontSize: '0.8rem', opacity: 0.8, marginTop: '4px' }}>3° Scaglione: Oltre i 50.000 €</div>
                             </button>
                         </div>
                     </div>
