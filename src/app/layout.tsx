@@ -67,7 +67,8 @@ export default function RootLayout({
         signIn: {
           start: {
             title: "Accedi a Gestionale",
-            subtitle: "La tua area finanziaria sicura."
+            subtitle: "La tua area finanziaria sicura.",
+            actionText: "Scopri il tuo Netto Reale"
           }
         }
       }}
