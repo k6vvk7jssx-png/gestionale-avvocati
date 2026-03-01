@@ -75,22 +75,26 @@ export default function RootLayout({
     >
       <html lang="it">
         <body className={`${geistSans.variable} ${geistMono.variable}`}>
-          <div className="app-container">
-            <header className="ios-header">
-              <div className="header-title">Gestionale iOS</div>
-              <div className="auth-container">
-                <SignedIn>
-                  <UserButton afterSignOutUrl="/" />
-                </SignedIn>
-              </div>
-            </header>
-
-            <main className="main-content">
+          <SignedOut>
+            <main>
               {children}
             </main>
+          </SignedOut>
 
-            {/* Bottom Navigation Bar */}
-            <SignedIn>
+          <SignedIn>
+            <div className="app-container">
+              <header className="ios-header">
+                <div className="header-title">Gestionale iOS</div>
+                <div className="auth-container">
+                  <UserButton afterSignOutUrl="/" />
+                </div>
+              </header>
+
+              <main className="main-content">
+                {children}
+              </main>
+
+              {/* Bottom Navigation Bar */}
               <nav className="bottom-nav">
                 <Link href="/dashboard" className="nav-item">
                   <span className="nav-icon">📊</span>
@@ -113,8 +117,8 @@ export default function RootLayout({
                   <span className="nav-text">Impo.</span>
                 </Link>
               </nav>
-            </SignedIn>
-          </div>
+            </div>
+          </SignedIn>
         </body>
       </html>
     </ClerkProvider>
