@@ -125,6 +125,22 @@ export default function Home() {
         </motion.div>
 
       </motion.div>
+
+      {/* Footer / Disclaimer Legale Beta */}
+      <motion.div
+        className="absolute bottom-4 sm:bottom-8 left-0 w-full px-6 text-center z-10"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 1.2, duration: 1 }}
+      >
+        <p className="text-[10px] sm:text-xs text-zinc-500 max-w-4xl mx-auto leading-relaxed">
+          <strong>Versione Beta Privata (Test).</strong> Questo software è fornito "as is" senza partita IVA, esclusivamente a scopo di test e prototipazione.
+          Le stime fiscali (IRPEF, Cassa Forense) hanno puro valore indicativo e non sostituiscono in alcun caso la consulenza di un Dottore Commercialista.
+          L'utente è l'unico responsabile per la veridicità dei dati inseriti e per le dichiarazioni fiscali prodotte.<br />
+          <strong>Privacy & Cookie:</strong> L'elaborazione OCR delle immagini avviene offline (lato client) e le immagini non vengono conservate sui nostri server.
+          Questo sito utilizza esclusivamente cookie tecnici essenziali per l'autenticazione e la sicurezza (forniti da Clerk). Nessun tracciamento a scopo di marketing o profilazione è attivo, pertanto non è richiesto il preventivo consenso (banner cookie).
+        </p>
+      </motion.div>
     </div>
   );
 }

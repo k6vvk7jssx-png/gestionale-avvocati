@@ -413,6 +413,17 @@ export default function Dashboard() {
           </div>
         </div>
       )}
+
+      {/* Footer Legale Interno (Beta) */}
+      <div style={{ marginTop: "4rem", paddingTop: "2rem", borderTop: "1px solid var(--border)", textAlign: "center" }}>
+        <p style={{ fontSize: "0.75rem", opacity: 0.6, maxWidth: "800px", margin: "0 auto", lineHeight: "1.6" }}>
+          <strong>Versione Beta Privata.</strong> Questo gestionale è fornito allo stato attuale come test non a fini commerciali (Senza Partita IVA).
+          I calcoli fiscali visualizzati in questa Dashboard (Cassa Forense, IRPEF, Imposta Sostitutiva) hanno puramente valore di simulazione matematica e non costituiscono parere professionale né dato certo per le dichiarazioni fiscali obbligatorie.
+          <br /><br />
+          <strong>Privacy:</strong> Nessun dato biometrico o immagine di spesa viene trasmesso esternamente (elaborazione OCR su dispositivo). Vengono impiegati esclusivamente cookie tecnici per la validazione della sessione.
+        </p>
+      </div>
+
     </div>
   );
 }
