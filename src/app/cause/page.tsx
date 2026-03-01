@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useUser, useSession } from "@clerk/nextjs";
 import { createClient } from "@supabase/supabase-js";
+import { calculateInvoice } from "@/lib/taxCalculator";
 
 // Inizializza Supabase Client (usiamo anon key per lato client protetto da RLS)
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -40,10 +41,32 @@ export default function Cause() {
         nome: "",
         compenso: "",
         data: new Date().toISOString().split('T')[0],
-        tipologia_fiscale: "forfettario_15"
+        tipologia_fiscale: "forfettario_15" as import("@/lib/taxCalculator").RegimeFiscale,
+        applicaIva: false,
+        applicaRitenuta: false
     });
 
+    const calculatedTaxes = React.useMemo(() => {
+        const cLordo = parseFloat(nuovaCausa.compenso.replace(',', '.'));
+        if (isNaN(cLordo) || cLordo <= 0) {
+            return {
+                compensoBase: 0, speseGenerali15: 0, cpa4: 0, iva22: 0, ritenutaAcconto20: 0, nettoCalcolato: 0, totaleFatturaLordo: 0
+            };
+        }
+        return calculateInvoice(
+            cLordo,
+            nuovaCausa.tipologia_fiscale,
+            nuovaCausa.applicaIva,
+            nuovaCausa.applicaRitenuta
+        );
+    }, [nuovaCausa.compenso, nuovaCausa.tipologia_fiscale, nuovaCausa.applicaIva, nuovaCausa.applicaRitenuta]);
+
     useEffect(() => {
+        const savedRegime = localStorage.getItem("regime_fiscale_generale");
+        if (savedRegime) {
+            setNuovaCausa(prev => ({ ...prev, tipologia_fiscale: savedRegime as any }));
+        }
+
         if (isSignedIn && user) {
             loadCause();
         }
@@ -64,7 +87,7 @@ export default function Cause() {
             const mappedData = (data || []).map(c => ({
                 id: c.id,
                 nome: c.nome_causa,
-                compenso: c.compenso_lordo,
+                compenso: c.netto_calcolato > 0 ? c.netto_calcolato : c.compenso_lordo, // Mostra il netto a video
                 data: c.data_sentenza,
                 stato: c.stato
             }));
@@ -84,13 +107,17 @@ export default function Cause() {
 
         setIsSaving(true);
         try {
-            const compensoFloat = parseFloat(String(nuovaCausa.compenso).replace(',', '.'));
-
-            // Payload allineato ESATTAMENTE alle colonne generate nello script SQL iniziale 
+            // Payload allineato ESATTAMENTE alle colonne generate nello script SQL
             const dataToInsert = {
                 user_id: user?.id,
                 nome_causa: nuovaCausa.nome,
-                compenso_lordo: compensoFloat,
+                compenso_lordo: calculatedTaxes.totaleFatturaLordo, // Il lordo totale in fattura
+                compenso_base: calculatedTaxes.compensoBase,
+                spese_generali_15: calculatedTaxes.speseGenerali15,
+                cpa_4: calculatedTaxes.cpa4,
+                iva_22: calculatedTaxes.iva22,
+                ritenuta_acconto_20: calculatedTaxes.ritenutaAcconto20,
+                netto_calcolato: calculatedTaxes.nettoCalcolato,
                 data_sentenza: nuovaCausa.data,
                 tipologia_fiscale: nuovaCausa.tipologia_fiscale,
                 stato: "incassata"
@@ -108,7 +135,9 @@ export default function Cause() {
                 nome: "",
                 compenso: "",
                 data: new Date().toISOString().split('T')[0],
-                tipologia_fiscale: "forfettario_15"
+                tipologia_fiscale: "forfettario_15",
+                applicaIva: false,
+                applicaRitenuta: false
             });
             await loadCause();
 
@@ -245,26 +274,92 @@ export default function Cause() {
                             value={nuovaCausa.data}
                             onChange={(e) => setNuovaCausa({ ...nuovaCausa, data: e.target.value })}
                         />
+                        <p style={{ marginTop: "1rem", marginBottom: "0.25rem", fontSize: "0.9rem", fontWeight: "600" }}>
+                            Compenso Lordo Concordato (€)
+                        </p>
                         <input
                             type="number"
-                            placeholder="Importo Netto da Ricevere (€)"
+                            placeholder="Es. 1000"
                             className="ios-input"
                             value={nuovaCausa.compenso}
                             onChange={(e) => setNuovaCausa({ ...nuovaCausa, compenso: e.target.value })}
                         />
 
-                        <label style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.9rem", opacity: 0.7 }}>Tipologia Fiscale</label>
+                        <label style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.9rem", opacity: 0.7, marginTop: "1rem" }}>Regime Fiscale Applicato</label>
                         <select
                             className="ios-input"
                             style={{ appearance: "none" }}
                             value={nuovaCausa.tipologia_fiscale}
-                            onChange={(e) => setNuovaCausa({ ...nuovaCausa, tipologia_fiscale: e.target.value })}
+                            onChange={(e) => setNuovaCausa({ ...nuovaCausa, tipologia_fiscale: e.target.value as any })}
                         >
-                            <option value="forfettario_5">Forfettario 5% (Startup / Primi 5 anni)</option>
-                            <option value="forfettario_15">Forfettario 15% (Standard)</option>
-                            <option value="ordinario">Ordinario (IRPEF + IVA)</option>
-                            <option value="free">🆓 Free / Senza Tasse (Vendita Privata, Rimborso)</option>
+                            <option value="forfettario_5">Forfettario 5%</option>
+                            <option value="forfettario_15">Forfettario 15%</option>
+                            <option value="ordinario">Ordinario</option>
+                            <option value="free">Lavoro Autonomo Occasionale / Esente</option>
                         </select>
+
+                        {/* Modulo Adattivo per Ordinario */}
+                        {nuovaCausa.tipologia_fiscale === "ordinario" && (
+                            <div className="ios-card" style={{ marginTop: "1rem", padding: "10px", backgroundColor: "var(--background)" }}>
+                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
+                                    <span style={{ fontSize: "0.9rem", fontWeight: "500" }}>Applica IVA 22%</span>
+                                    <input
+                                        type="checkbox"
+                                        checked={nuovaCausa.applicaIva}
+                                        onChange={(e) => setNuovaCausa({ ...nuovaCausa, applicaIva: e.target.checked })}
+                                        style={{ transform: "scale(1.2)" }}
+                                    />
+                                </div>
+                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                    <span style={{ fontSize: "0.9rem", fontWeight: "500" }}>Applica Ritenuta 20%</span>
+                                    <input
+                                        type="checkbox"
+                                        checked={nuovaCausa.applicaRitenuta}
+                                        onChange={(e) => setNuovaCausa({ ...nuovaCausa, applicaRitenuta: e.target.checked })}
+                                        style={{ transform: "scale(1.2)" }}
+                                    />
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Riepilogo Calcoli */}
+                        {parseFloat(nuovaCausa.compenso) > 0 && (
+                            <div className="ios-card" style={{ marginTop: "1rem", backgroundColor: "rgba(0,122,255,0.05)", border: "1px solid var(--primary)" }}>
+                                <h4 style={{ margin: "0 0 10px 0", fontSize: "0.95rem" }}>Riepilogo Fattura O.D.A.</h4>
+                                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.85rem", opacity: 0.8 }}>
+                                    <span>Compenso:</span>
+                                    <span>€{calculatedTaxes.compensoBase.toFixed(2)}</span>
+                                </div>
+                                {calculatedTaxes.speseGenerali15 > 0 && (
+                                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.85rem", opacity: 0.8 }}>
+                                        <span>Spese Generali 15%:</span>
+                                        <span>+€{calculatedTaxes.speseGenerali15.toFixed(2)}</span>
+                                    </div>
+                                )}
+                                {calculatedTaxes.cpa4 > 0 && (
+                                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.85rem", opacity: 0.8 }}>
+                                        <span>CPA 4%:</span>
+                                        <span>+€{calculatedTaxes.cpa4.toFixed(2)}</span>
+                                    </div>
+                                )}
+                                {calculatedTaxes.iva22 > 0 && (
+                                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.85rem", opacity: 0.8 }}>
+                                        <span>IVA 22%:</span>
+                                        <span>+€{calculatedTaxes.iva22.toFixed(2)}</span>
+                                    </div>
+                                )}
+                                {calculatedTaxes.ritenutaAcconto20 > 0 && (
+                                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.85rem", color: "var(--destructive)" }}>
+                                        <span>Ritenuta 20%:</span>
+                                        <span>-€{calculatedTaxes.ritenutaAcconto20.toFixed(2)}</span>
+                                    </div>
+                                )}
+                                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "1.1rem", fontWeight: "bold", marginTop: "10px", paddingTop: "5px", borderTop: "1px solid rgba(0,0,0,0.1)" }}>
+                                    <span>Netto in Fattura:</span>
+                                    <span style={{ color: "var(--success)" }}>€{calculatedTaxes.nettoCalcolato.toFixed(2)}</span>
+                                </div>
+                            </div>
+                        )}
 
                         <button
                             className="ios-btn-large"
@@ -272,7 +367,7 @@ export default function Cause() {
                             onClick={handleAggiungiCausa}
                             disabled={isSaving}
                         >
-                            {isSaving ? "Salvataggio in corso..." : "Aggiungi Entrata"}
+                            {isSaving ? "Salvataggio in corso..." : "Registra Entrata"}
                         </button>
                     </div>
                 </div>

@@ -72,59 +72,72 @@ export default function Tasse() {
                 console.error("Errore fetch cause annue:", errCause);
             }
 
-            // 2. Prendi tutte le Spese dell'anno corrente (In caso di regime ordinario servono come deduzione)
+            // 2. Prendi tutte le Spese dell'anno corrente
             const { data: spese } = await supabase
                 .from('transazioni')
-                .select('importo, categoria')
+                .select('importo, importo_deducibile, categoria')
                 .eq('user_id', user?.id)
                 .eq('tipo', 'uscita')
                 .gte('data_transazione', startOfYear)
                 .lte('data_transazione', endOfYear);
 
-            const speseTotali = (spese || []).reduce((acc, curr) => acc + curr.importo, 0);
+            const speseTotaliDeducibili = (spese || []).reduce((acc, curr) => acc + Number(curr.importo_deducibile ?? curr.importo), 0);
 
             let totLordo = 0;
             let totTasse = 0;
             let totCassa = 0;
             let totNetto = 0;
 
+            let imponibileOrdinarioAnnuo = 0;
+            let cassaOrdinarioAnnuo = 0;
+
             if (cause) {
                 cause.forEach(c => {
                     const importoLordo = Number(c.compenso_lordo || 0);
+                    const compensoBase = Number(c.compenso_base || importoLordo);
                     totLordo += importoLordo;
 
-                    let imponibile = 0, tasse = 0, cassa = 0, netto = 0;
                     const r = c.tipologia_fiscale || "forfettario_15";
 
                     if (r === "forfettario_5" || r === "forfettario_15") {
-                        imponibile = importoLordo * 0.78;
+                        // Nel forfettario non scala le spese, abbattimento coefficiente redditività fisso 78%
+                        const imponibile = compensoBase * 0.78;
                         const aliquota = r === "forfettario_5" ? 0.05 : 0.15;
-                        tasse = imponibile * aliquota;
-                        cassa = imponibile * 0.17; // Modello semplificato
-                        netto = importoLordo - tasse - cassa;
-                    } else if (r === "ordinario") {
-                        const trattenuta = importoLordo * 0.46;
-                        tasse = trattenuta * 0.6;
-                        cassa = trattenuta * 0.4;
-                        netto = importoLordo - trattenuta;
-                    } else if (r === "free" || r === "Senza Tasse") {
-                        tasse = 0;
-                        cassa = 0;
-                        netto = importoLordo;
-                    }
+                        const tasse = imponibile * aliquota;
+                        const cassa = imponibile * 0.17;
 
-                    totTasse += tasse;
-                    totCassa += cassa;
-                    totNetto += netto;
+                        totTasse += tasse;
+                        totCassa += cassa;
+                    } else if (r === "ordinario") {
+                        imponibileOrdinarioAnnuo += compensoBase;
+                        // CPA è circa 4% sul fatturato calcolato in fattura (si ricava esatto dalla db call "c_cpa_4")
+                        cassaOrdinarioAnnuo += Number(c.cpa_4 || (compensoBase * 1.15 * 0.04));
+                    }
                 });
             }
+
+            // Calcolo finale Tasse per Ordinario se presente reddito ordinario, abbattendo le spese
+            if (imponibileOrdinarioAnnuo > 0) {
+                // Sottraiamo le spese deducibili e la cassa dall'imponibile Irpef
+                let baseImponibileFisco = imponibileOrdinarioAnnuo - speseTotaliDeducibili - cassaOrdinarioAnnuo;
+                if (baseImponibileFisco < 0) baseImponibileFisco = 0;
+
+                // Calcolo IRPEF progressivo semplificato (aliquota media ~28-35% in base al reddito, o piatta ipotetica)
+                // Usiamo un ~30% per semplicità sul gestore, ma si può rendere progressivo
+                const tasseOrdinario = baseImponibileFisco * 0.30;
+
+                totTasse += tasseOrdinario;
+                totCassa += cassaOrdinarioAnnuo;
+            }
+
+            totNetto = totLordo - totTasse - totCassa;
 
             setDatiAnnuali({
                 incassatoLordo: totLordo,
                 tasseDaPagare: totTasse,
                 cassaDaPagare: totCassa,
                 nettoTasche: totNetto,
-                speseDeducibili: speseTotali
+                speseDeducibili: speseTotaliDeducibili
             });
 
         } catch (error) {

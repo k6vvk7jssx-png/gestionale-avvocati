@@ -62,7 +62,12 @@ export default function Dashboard() {
   const [categorieSpesa, setCategorieSpesa] = useState(categorieIniziali);
   const [transazioniMese, setTransazioniMese] = useState<any[]>([]);
 
+  const [sogliaFaccina, setSogliaFaccina] = useState(40);
+
   useEffect(() => {
+    const savedSoglia = localStorage.getItem("soglia_faccina");
+    if (savedSoglia) setSogliaFaccina(Number(savedSoglia));
+
     if (isSignedIn && user) {
       caricaDatiMensili();
     }
@@ -113,7 +118,7 @@ export default function Dashboard() {
       // 2. Carica le Uscite (Transazioni)
       const { data: uscite, error: errUscite } = await supabase
         .from('transazioni')
-        .select('id, importo, categoria, descrizione, data_transazione, created_at')
+        .select('id, importo, categoria, descrizione, data_transazione, created_at, importo_deducibile')
         .eq('user_id', user?.id)
         .eq('tipo', 'uscita')
         .gte('data_transazione', startOfMonth)
@@ -124,25 +129,67 @@ export default function Dashboard() {
         alert("Errore nel caricamento spese: " + errUscite.message);
       }
 
-      let totUscite = 0;
+      let totUsciteLorde = 0;
+      let totUsciteDeducibili = 0;
       const nuoveCategorie = categorieIniziali.map(c => ({ ...c, totale: 0 })); // Reset
 
       if (uscite) {
         setTransazioniMese(uscite);
         uscite.forEach(u => {
-          totUscite += Number(u.importo);
+          const importoNumerico = Number(u.importo);
+          totUsciteLorde += importoNumerico;
+          // Usa importo_deducibile se presente (post-aggiornamento), altrimenti usa il lordo
+          totUsciteDeducibili += Number(u.importo_deducibile ?? importoNumerico);
+
           const catIndex = nuoveCategorie.findIndex(c => c.nome === u.categoria);
           if (catIndex !== -1) {
-            nuoveCategorie[catIndex].totale += Number(u.importo);
+            nuoveCategorie[catIndex].totale += importoNumerico;
           } else {
-            nuoveCategorie[nuoveCategorie.length - 1].totale += Number(u.importo); // 'Altro'
+            nuoveCategorie[nuoveCategorie.length - 1].totale += importoNumerico; // 'Altro'
+          }
+        });
+      }
+
+      // 3. Calcolo Finanziario Combinato (Entrate e Tasse)
+      totTasseAccantonate = 0;
+      if (cause) {
+        cause.forEach(c => {
+          const tipoFiscale = c.tipologia_fiscale || "forfettario_15";
+
+          if (tipoFiscale === "forfettario_5" || tipoFiscale === "forfettario_15") {
+            const imponibile = c.compenso_base ? c.compenso_base * 0.78 : Number(c.compenso_lordo || 0) * 0.78;
+            const aliquota = tipoFiscale === "forfettario_5" ? 0.05 : 0.15;
+            totTasseAccantonate += (imponibile * aliquota) + (imponibile * 0.17); // Irpef + Cassa Semplificata
+          } else if (tipoFiscale === "ordinario") {
+            // Se Usa il nuovo sistema, usiamo i pre-calcolati, tranne per l'IRPEF base
+            // Nell'ordinario le spese deducibili abbassano l'imponibile
+            const lordo = Number(c.compenso_base || c.compenso_lordo || 0);
+
+            // Impatto deduzioni (Spalmiamo la deduzione del mese pro-quota sull'entrata, ma per la dashboard facciamo un calcolo brutale mensile)
+            // Logica semplificata dashboard: 
+            // - Si calcolano le tasse lorde sulle entrate ordinarie del mese
+            // - Si sottraggono le tasse risparmiate dalle deduzioni del mese (approx 43% marginale)
+            const trattenutaIniziale = lordo * 0.46; // (Irpef + Cassa indicativa)
+            const risparmioFiscale = totUsciteDeducibili > 0 ? (totUsciteDeducibili * 0.46) : 0;
+
+            // Non fa mai scendere le tasse sotto zero
+            let tasseDaAccantonareReali = trattenutaIniziale - risparmioFiscale;
+            if (tasseDaAccantonareReali < 0) tasseDaAccantonareReali = 0;
+
+            totTasseAccantonate += tasseDaAccantonareReali;
+
+            // Evita di ri-calcolare la deduzione per fatture successive nello stesso mese per non sballare
+            totUsciteDeducibili = 0;
+
+          } else if (tipoFiscale === "free") {
+            totTasseAccantonate += 0;
           }
         });
       }
 
       setEntrateMensili(totEntrate);
       setTasseMensiliAccantonate(totTasseAccantonate);
-      setUsciteMensili(totUscite);
+      setUsciteMensili(totUsciteLorde);
       setCategorieSpesa(nuoveCategorie);
 
     } catch (error) {
@@ -179,7 +226,7 @@ export default function Dashboard() {
   // Percentuale allarme su Uscite rispetto alle Entrate (ma escludendo le tasse fisse dal calcolo di "sto spendendo troppo")
   const entrateVerificabili = entrateMensili > 0 ? entrateMensili : 1;
   const uscitePercentuale = (usciteMensili / entrateVerificabili) * 100;
-  const emoticonInfo = uscitePercentuale > 40 ? "😢" : "😀";
+  const emoticonInfo = uscitePercentuale > sogliaFaccina ? "😢" : "😀";
 
   const dataMensile = {
     labels: ['Netto Pulito', 'Spese', 'Tasse Accantonate'],

@@ -107,6 +107,10 @@ export default function RootLayout({
                   <span className="nav-icon">⚖️</span>
                   <span className="nav-text">Cause</span>
                 </Link>
+                <Link href="/impostazioni" className="nav-item">
+                  <span className="nav-icon">⚙️</span>
+                  <span className="nav-text">Impo.</span>
+                </Link>
               </nav>
             </SignedIn>
           </div>

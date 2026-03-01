@@ -75,27 +75,110 @@ export default function ScannerScontrini() {
 
         const base64Data = await new Promise<string>((resolve) => {
             const reader = new FileReader();
-            reader.onloadend = () => resolve((reader.result as string).split(',')[1]);
+            reader.onload = (event) => {
+                const img = new window.Image();
+                img.onload = () => {
+                    let MAX_DIM = 1000;
+                    let quality = 0.7;
+                    let dataUrl = "";
+                    let pass = 0;
+
+                    do {
+                        let width = img.width;
+                        let height = img.height;
+
+                        if (width > height) {
+                            if (width > MAX_DIM) {
+                                height = Math.round((height * MAX_DIM) / width);
+                                width = MAX_DIM;
+                            }
+                        } else {
+                            if (height > MAX_DIM) {
+                                width = Math.round((width * MAX_DIM) / height);
+                                height = MAX_DIM;
+                            }
+                        }
+
+                        const canvas = document.createElement('canvas');
+                        canvas.width = width;
+                        canvas.height = height;
+                        const ctx = canvas.getContext('2d');
+
+                        if (ctx) {
+                            ctx.fillStyle = '#FFFFFF';
+                            ctx.fillRect(0, 0, width, height);
+                            ctx.drawImage(img, 0, 0, width, height);
+                        }
+
+                        dataUrl = canvas.toDataURL('image/jpeg', quality);
+                        MAX_DIM -= 200;
+                        quality -= 0.15;
+                        pass++;
+
+                    } while (dataUrl.length > 1300000 && pass < 5);
+
+                    resolve(dataUrl);
+                };
+                img.src = event.target?.result as string;
+            };
             reader.readAsDataURL(file);
         });
 
         try {
-            const response = await fetch('/api/ocr', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ imageBase64: base64Data })
+            // Utilizzo di Tesseract OCR locale via client-browser (no api payload a pagamento)
+            const Tesseract = await import('tesseract.js');
+            const result = await Tesseract.recognize(base64Data, 'ita', {
+                logger: m => console.log(m)
             });
 
-            const data = await response.json();
+            const text = result.data.text;
+            const testoLows = text.toLowerCase();
 
-            if (response.ok) {
-                setScannedData(data);
-            } else {
-                alert("Errore nella scansione: " + data.error);
+            // Estrazione Importo
+            let importoEstratto = 0;
+            const regexTotale = /(?:totale|importo|pagato|eur|euro|€)\s*[:.-]?\s*(\d{1,4}[.,]\d{2})/ig;
+            let match;
+            let massimi = [];
+
+            while ((match = regexTotale.exec(testoLows)) !== null) {
+                const pulito = match[1].replace(',', '.');
+                const num = parseFloat(pulito);
+                if (!isNaN(num)) massimi.push(num);
             }
+
+            if (massimi.length > 0) {
+                importoEstratto = Math.max(...massimi);
+            } else {
+                const regexNumeriValuta = /(\d{1,4}[.,]\d{2})/g;
+                const matchesArr = Array.from(testoLows.matchAll(regexNumeriValuta)) as RegExpMatchArray[];
+                if (matchesArr.length > 0) {
+                    const ultimoElemento = matchesArr[matchesArr.length - 1];
+                    if (ultimoElemento && ultimoElemento[1]) {
+                        const lastMatch = ultimoElemento[1].replace(',', '.');
+                        importoEstratto = parseFloat(lastMatch);
+                    }
+                }
+            }
+
+            // Categorizzazione
+            let categoriaSuggerita = "Altro";
+            if (testoLows.match(/ristorant|pizzer|trattoria|bar |osteria|caff/)) categoriaSuggerita = "Ristoranti";
+            else if (testoLows.match(/farmacia|medic|visita|sanit|dott.ssa|dott./)) categoriaSuggerita = "Salute";
+            else if (testoLows.match(/carburant|benzi|eni|q8|agip|tamoil|ip |diesel|verde|gasolio/)) categoriaSuggerita = "Carburante";
+            else if (testoLows.match(/conad|coop|esselunga|pam|lidl|eurospin|despar|supermercat/)) categoriaSuggerita = "Alimenti";
+            else if (testoLows.match(/treno|italo|trenitalia|taxi|bus|metropolitana/)) categoriaSuggerita = "Auto/Trasporti";
+            else if (testoLows.match(/cartoleria|buffetti|carta|penna/)) categoriaSuggerita = "Cancelleria";
+            else if (testoLows.match(/amazon|software|abbonament/)) categoriaSuggerita = "Software";
+
+            setScannedData({
+                importo: importoEstratto,
+                categoria: categoriaSuggerita,
+                testoEstratto: text.substring(0, 300) + (text.length > 300 ? "..." : "")
+            });
+
         } catch (err) {
             console.error(err);
-            alert("Errore nella comunicazione con l'Intelligenza Artificiale. Verifica la tua chiave API OCR.space su Vercel o la tua connessione.");
+            alert("Errore nella scansione locale con Tesseract: " + (err as Error).message);
         } finally {
             setIsScanning(false);
         }
@@ -113,6 +196,13 @@ export default function ScannerScontrini() {
             const data_transazione = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
             const importoCorretto = parseImporto(spesaManuale.importo);
+            const regimeGenerale = localStorage.getItem("regime_fiscale_generale");
+            let percentualeDeducibilita = 0;
+            if (regimeGenerale === "ordinario") {
+                const { getDeductibilityPercentage } = await import('@/lib/deductibility');
+                percentualeDeducibilita = getDeductibilityPercentage(spesaManuale.categoria);
+            }
+            const importoDeducibile = importoCorretto * percentualeDeducibilita;
 
             const { error } = await supabase.from('transazioni').insert({
                 user_id: user?.id,
@@ -120,12 +210,15 @@ export default function ScannerScontrini() {
                 importo: importoCorretto,
                 categoria: spesaManuale.categoria,
                 descrizione: spesaManuale.descrizione,
-                data_transazione: data_transazione
+                data_transazione: data_transazione,
+                percentuale_deducibilita: percentualeDeducibilita,
+                importo_deducibile: importoDeducibile
             });
 
             if (error) throw error;
 
-            alert("Spesa registrata! La Dashboard si sta aggiornando...");
+            const deducMsg = regimeGenerale === "ordinario" ? ` (Deducibile al ${percentualeDeducibilita * 100}%)` : ` (Nessuna deduzione in Forfettario)`;
+            alert(`Spesa registrata!${deducMsg}`);
             setSpesaManuale({ importo: "", categoria: "Altro", descrizione: "" });
             router.refresh();
             router.push('/dashboard');
@@ -146,19 +239,29 @@ export default function ScannerScontrini() {
             const data_transazione = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
             const importoCorretto = parseImporto(scannedData.importo);
+            const regimeGenerale = localStorage.getItem("regime_fiscale_generale");
+            let percentualeDeducibilita = 0;
+            if (regimeGenerale === "ordinario") {
+                const { getDeductibilityPercentage } = await import('@/lib/deductibility');
+                percentualeDeducibilita = getDeductibilityPercentage(scannedData.categoria);
+            }
+            const importoDeducibile = importoCorretto * percentualeDeducibilita;
 
             const { error } = await supabase.from('transazioni').insert({
                 user_id: user?.id,
                 tipo: 'uscita',
                 importo: importoCorretto,
                 categoria: scannedData.categoria,
-                descrizione: "Auto-Scansione AI",
-                data_transazione: data_transazione
+                descrizione: "Auto-Scansione AI (Locale)",
+                data_transazione: data_transazione,
+                percentuale_deducibilita: percentualeDeducibilita,
+                importo_deducibile: importoDeducibile
             });
 
             if (error) throw error;
 
-            alert("Scontrino AI registrato! La Dashboard si sta aggiornando...");
+            const deducMsg = regimeGenerale === "ordinario" ? ` (Deducibile al ${percentualeDeducibilita * 100}%)` : ` (Nessuna deduzione in Forfettario)`;
+            alert(`Scontrino AI registrato!${deducMsg}`);
             setFile(null);
             setPreview(null);
             setScannedData(null);
