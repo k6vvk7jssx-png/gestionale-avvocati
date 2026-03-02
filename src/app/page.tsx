@@ -5,11 +5,11 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { dark } from "@clerk/themes";
+import { CheckCircle2 } from "lucide-react";
 
 export default function Home() {
   const { isLoaded, isSignedIn } = useUser();
   const router = useRouter();
-  const [showLogin, setShowLogin] = useState(false);
 
   useEffect(() => {
     if (isLoaded && isSignedIn) {
@@ -19,174 +19,151 @@ export default function Home() {
 
   if (!isLoaded || isSignedIn) {
     return (
-      <div className="min-h-screen bg-[#050505] flex justify-center items-center">
+      <div className="min-h-screen bg-slate-900 flex justify-center items-center">
         <motion.div
           animate={{ scale: [1, 1.2, 1], opacity: [0.5, 1, 0.5] }}
           transition={{ repeat: Infinity, duration: 2 }}
-          className="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"
+          className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"
         />
       </div>
     );
   }
 
   return (
-    <div className="relative min-h-screen bg-[#050505] text-white overflow-hidden flex flex-col justify-center items-center p-4 sm:p-8 selection:bg-indigo-500/30 font-sans">
+    <div className="min-h-screen bg-slate-900 text-slate-50 font-sans flex flex-col lg:flex-row overflow-hidden relative selection:bg-blue-500/30">
 
-      {/* Sfondi Ammorbidenti (Blobs Animati) */}
-      <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-0 pointer-events-none">
-        <motion.div
-          animate={{
-            scale: [1, 1.1, 1],
-            rotate: [0, 90, 0],
-            opacity: [0.15, 0.25, 0.15]
-          }}
-          transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-          className="absolute -top-[10%] -left-[10%] w-[80%] h-[80%] lg:w-[40%] lg:h-[60%] bg-indigo-600/40 blur-[130px] rounded-full mix-blend-screen"
-        />
-        <motion.div
-          animate={{
-            scale: [1, 1.2, 1],
-            rotate: [0, -90, 0],
-            opacity: [0.15, 0.25, 0.15]
-          }}
-          transition={{ duration: 25, repeat: Infinity, ease: "linear" }}
-          className="absolute -bottom-[10%] -right-[10%] w-[80%] h-[80%] lg:w-[40%] lg:h-[60%] bg-purple-600/40 blur-[140px] rounded-full mix-blend-screen"
-        />
-        <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-10 brightness-100 contrast-150 mix-blend-overlay"></div>
+      {/* Sfondo Astratto Colonna Sinistra / Globale */}
+      <div className="absolute top-0 left-0 w-full lg:w-1/2 h-full overflow-hidden pointer-events-none z-0">
+        <div className="absolute top-[-10%] left-[-20%] w-[700px] h-[700px] bg-blue-600/10 blur-[120px] rounded-full mix-blend-screen" />
+        <div className="absolute bottom-[-20%] right-[-10%] w-[600px] h-[600px] bg-amber-500/5 blur-[120px] rounded-full mix-blend-screen" />
+        <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-5 mix-blend-overlay"></div>
       </div>
 
-      <div className="relative z-10 w-full max-w-6xl mx-auto flex flex-col items-center justify-center min-h-[70vh]">
-        <AnimatePresence mode="wait">
-          {!showLogin ? (
-            <motion.div
-              key="hook"
-              initial={{ opacity: 0, scale: 0.9, filter: 'blur(10px)' }}
-              animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
-              exit={{ opacity: 0, scale: 1.1, filter: 'blur(10px)' }}
-              transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-              className="text-center cursor-pointer group px-4 shrink-0 mt-[-5%]"
-              onClick={() => setShowLogin(true)}
-            >
-              <div className="inline-flex items-center justify-center px-4 py-1.5 mb-10 overflow-hidden rounded-full bg-white/5 border border-white/10 backdrop-blur-md opacity-70 group-hover:opacity-100 transition-opacity">
-                <span className="relative flex h-2 w-2 mr-3">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                </span>
-                <span className="relative text-xs sm:text-sm font-medium tracking-wide text-zinc-300 uppercase">
-                  Aggiornato 2026
-                </span>
-              </div>
+      {/* COLONNA SINISTRA: Value Proposition */}
+      <div className="relative z-10 flex-1 flex flex-col justify-center px-8 py-12 lg:p-16 xl:p-24 border-b border-white/5 lg:border-b-0 lg:border-r">
+        <div className="max-w-xl mx-auto lg:mx-0">
 
-              <h1
-                className="text-6xl sm:text-7xl lg:text-8xl font-black tracking-tighter leading-[0.95] mb-6 drop-shadow-2xl"
-                style={{ fontFamily: "Inter, 'SF Pro Display', sans-serif" }}
-              >
-                Il tuo conto in banca<br />
-                <span className="block mt-2 bg-gradient-to-r from-indigo-400 via-purple-400 to-indigo-400 bg-[length:200%_auto] animate-gradient-text text-transparent bg-clip-text pb-4">
-                  ti mente.
-                </span>
-              </h1>
+          {/* Badge */}
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+            className="inline-flex items-center px-4 py-1.5 mb-8 rounded-full bg-blue-500/10 border border-blue-500/20 backdrop-blur-sm"
+          >
+            <span className="flex h-2 w-2 mr-2">
+              <span className="animate-ping absolute inline-flex h-2 w-2 rounded-full bg-blue-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
+            </span>
+            <span className="text-xs font-semibold tracking-wider text-blue-300 uppercase">
+              Aggiornato 2026 | Riservato agli Avvocati
+            </span>
+          </motion.div>
 
-              <p className="text-xl sm:text-2xl text-zinc-400 mb-12 font-light max-w-2xl mx-auto group-hover:text-zinc-200 transition-colors">
-                1000€ incassati non sono 1000€ in tasca.<br className="hidden sm:block" />
-                Clicca per scoprire la verità.
-              </p>
+          {/* Titolo Principale */}
+          <motion.h1
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.1 }}
+            className="text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tight leading-[1.1] mb-6"
+          >
+            Scopri il tuo
+            <span className="block mt-1 bg-gradient-to-r from-blue-400 to-amber-500 text-transparent bg-clip-text pb-2">
+              vero netto.
+            </span>
+            Senza sorprese.
+          </motion.h1>
 
-              <motion.div
-                className="inline-flex w-16 h-16 rounded-full bg-indigo-600/20 items-center justify-center border border-indigo-500/30 group-hover:bg-indigo-600/40 group-hover:scale-110 transition-all duration-300"
-                animate={{ y: [0, 10, 0] }}
-                transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
-              >
-                <svg className="w-8 h-8 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
-                </svg>
-              </motion.div>
-            </motion.div>
-          ) : (
-            <motion.div
-              key="login"
-              initial={{ opacity: 0, y: 50, filter: 'blur(10px)' }}
-              animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-              transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-              className="w-full flex justify-center perspective-[2000px] mt-8"
-            >
-              <motion.div
-                className="w-full max-w-md rounded-[32px] p-[1.5px] bg-gradient-to-b from-indigo-500/30 to-white/5 shadow-2xl shadow-indigo-500/20 backdrop-blur-xl"
-                whileHover={{ scale: 1.02 }}
-                transition={{ type: "spring", stiffness: 400, damping: 25 }}
-              >
-                <div className="bg-[#09090b]/95 rounded-[30px] p-6 sm:p-8 relative overflow-hidden h-full w-full">
-                  <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-b from-indigo-500/10 to-transparent pointer-events-none rounded-t-[30px]" />
+          {/* Sottotitolo */}
+          <motion.p
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.2 }}
+            className="text-lg sm:text-xl text-slate-400 mb-10 leading-relaxed font-light"
+          >
+            Il tuo conto in banca non ti dice tutta la verità. Il primo gestionale fiscale che calcola in tempo reale <strong className="text-slate-200 font-medium">tasse, cassa forense e deduzioni</strong> per gli studi legali.
+          </motion.p>
 
-                  <div className="relative z-10">
-                    <div className="text-center mb-6">
-                      <h2 className="text-2xl font-bold text-white tracking-tight mb-2">Togliti i dubbi.</h2>
-                      <p className="text-zinc-400 text-sm">Accedi per svelare il tuo vero netto.</p>
-                    </div>
+          {/* Bullet Points */}
+          <motion.ul
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.8, delay: 0.4 }}
+            className="space-y-4 mb-12"
+          >
+            {[
+              "Calcolo istantaneo del netto reale.",
+              "Ottimizzazione delle spese deducibili.",
+              "Niente più ansia per gli F24."
+            ].map((text, i) => (
+              <li key={i} className="flex items-center text-slate-300 text-lg">
+                <CheckCircle2 className="w-5 h-5 mr-3 text-amber-500 shrink-0" />
+                <span>{text}</span>
+              </li>
+            ))}
+          </motion.ul>
 
-                    <SignIn
-                      routing="hash"
-                      appearance={{
-                        baseTheme: dark,
-                        variables: {
-                          colorPrimary: '#6366f1',
-                          colorBackground: 'transparent',
-                          colorInputBackground: 'rgba(255,255,255,0.05)',
-                          colorInputText: '#ffffff',
-                          colorText: '#e4e4e7',
-                          colorTextSecondary: '#a1a1aa',
-                          fontFamily: 'var(--font-geist-sans)',
-                          borderRadius: '0.75rem',
-                        },
-                        elements: {
-                          card: 'bg-transparent shadow-none p-0',
-                          header: 'hidden',
-                          footer: 'pt-4 pb-0',
-                          socialButtonsBlockButton: 'border border-white/10 bg-white/5 hover:bg-white/10 text-white transition-all duration-300 rounded-[14px] py-3.5 shadow-sm',
-                          socialButtonsBlockButtonText: 'font-medium tracking-wide',
-                          formButtonPrimary: 'bg-indigo-600 hover:bg-indigo-500 hover:shadow-[0_0_20px_rgba(99,102,241,0.4)] text-white shadow-lg shadow-indigo-500/20 transition-all duration-300 rounded-[14px] py-4 font-semibold tracking-wide text-[16px]',
-                          formFieldInput: 'border-white/10 focus:border-indigo-500 bg-black/40 rounded-[14px] transition-all px-4 py-3.5',
-                          formFieldLabel: 'text-zinc-400 text-xs font-semibold uppercase tracking-wider',
-                          dividerLine: 'bg-white/10',
-                          dividerText: 'text-zinc-500 font-medium text-xs uppercase tracking-wider',
-                          footerActionLink: 'text-indigo-400 hover:text-indigo-300 font-semibold',
-                          footerActionText: 'text-zinc-500',
-                        }
-                      }}
-                    />
-                  </div>
-                </div>
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+        </div>
+
+        {/* Footer / Disclaimer (Desktop bottom-left, Mobile inline) */}
+        <div className="mt-auto pt-8 border-t border-white/5 lg:border-none lg:pt-0">
+          <p className="text-xs text-slate-500 leading-relaxed lg:max-w-md">
+            Beta Privata. Software fornito as-is a scopo di test. Le stime non costituiscono parere professionale. Elaborazione OCR offline locale. Solo cookie tecnici.
+          </p>
+        </div>
       </div>
 
-      <style dangerouslySetInnerHTML={{
-        __html: `
-@keyframes gradient - text {
-  0 % { background- position: 0 % 50 %;
-}
-50 % { background- position: 100 % 50 %; }
-100 % { background- position: 0 % 50 %; }
-        }
-        .animate - gradient - text {
-  animation: gradient - text 4s ease infinite;
-}
-        .cl - header { display: none!important; }
-`}} />
+      {/* COLONNA DESTRA: Autenticazione */}
+      <div className="relative z-10 flex-1 flex items-center justify-center p-6 sm:p-12 lg:p-16 bg-slate-900/50 backdrop-blur-3xl">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.7, delay: 0.3 }}
+          className="w-full max-w-md relative"
+        >
+          {/* Decorative Glow behind the card */}
+          <div className="absolute -inset-1 bg-gradient-to-br from-blue-500/20 to-amber-500/20 rounded-[2rem] blur-xl opacity-50" />
 
-      <motion.div
-        className="absolute bottom-4 left-0 w-full px-6 text-center z-10"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 1, duration: 1.5 }}
-      >
-        <p className="text-[10px] sm:text-[11px] text-zinc-600 max-w-4xl mx-auto leading-relaxed">
-          <strong>Beta Privata.</strong> Software fornito as-is a scopo di test (Senza P.IVA). Le stime AI/fiscali non costituiscono parere professionale.<br className="hidden sm:block" />
-          Elaborazione OCR offline locale su dispositivo. Vengono impiegati esclusivamente cookie tecnici per sessioni sicure.
-        </p>
-      </motion.div>
+          {/* Glassmorphism Card */}
+          <div className="relative bg-slate-800/40 backdrop-blur-xl border border-white/10 p-6 sm:p-8 rounded-3xl shadow-2xl">
+            <div className="text-center mb-8">
+              <h2 className="text-2xl font-bold text-white tracking-tight mb-2">Accedi al Gestionale</h2>
+              <p className="text-slate-400 text-sm">Inserisci le tue credenziali per iniziare.</p>
+            </div>
+
+            <div className="clerk-container flex justify-center">
+              <SignIn
+                routing="hash"
+                appearance={{
+                  baseTheme: dark,
+                  variables: {
+                    colorPrimary: '#2563eb', // blue-600
+                    colorBackground: 'transparent',
+                    colorInputBackground: 'rgba(255,255,255,0.05)',
+                    colorInputText: '#f8fafc',
+                    colorText: '#cbd5e1',
+                    colorTextSecondary: '#94a3b8',
+                    fontFamily: 'inherit',
+                    borderRadius: '0.75rem',
+                  },
+                  elements: {
+                    card: 'bg-transparent shadow-none p-0 w-full',
+                    header: 'hidden',
+                    footer: 'hidden',
+                    socialButtonsBlockButton: 'border border-white/10 bg-white/5 hover:bg-white/10 text-white transition-all duration-300 rounded-[14px] py-3.5 shadow-sm w-full',
+                    socialButtonsBlockButtonText: 'font-medium tracking-wide',
+                    formButtonPrimary: 'bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-500/20 transition-all duration-300 rounded-[14px] py-4 font-semibold tracking-wide text-[16px] w-full',
+                    formFieldInput: 'border-white/10 focus:border-blue-500 bg-black/20 rounded-[14px] transition-all px-4 py-3.5',
+                    formFieldLabel: 'text-slate-400 text-xs font-semibold uppercase tracking-wider',
+                    dividerLine: 'bg-white/10',
+                    dividerText: 'text-slate-500 font-medium text-xs uppercase tracking-wider',
+                  }
+                }}
+              />
+            </div>
+          </div>
+        </motion.div>
+      </div>
+
     </div>
   );
 }
