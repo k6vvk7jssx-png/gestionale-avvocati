@@ -178,25 +178,23 @@ export default function Dashboard() {
 
           if (tipoFiscale === "forfettario_5" || tipoFiscale === "forfettario_15") {
             const compensoPuro = Number(c.compenso_base || c.compenso_lordo || 0);
-            const speseGen = compensoPuro * 0.15;
-            const redditoLordo = (compensoPuro + speseGen) * 0.78;
+            const imponibile = compensoPuro * 0.78;
 
-            const cassaSoggettiva = redditoLordo * 0.17;
+            const cassaSoggettiva = imponibile * 0.17;
             const aliquotaSostitutiva = tipoFiscale === "forfettario_5" ? 0.05 : 0.15;
-            const impostaSostitutiva = redditoLordo * aliquotaSostitutiva;
+            const impostaSostitutiva = imponibile * aliquotaSostitutiva;
 
             totTasseAccantonate += (cassaSoggettiva + impostaSostitutiva);
 
           } else if (tipoFiscale === "ordinario") {
             const compensoPuro = Number(c.compenso_base || c.compenso_lordo || 0);
-            const speseGen = compensoPuro * 0.15;
-            const fatturatoAiFiniTasse = compensoPuro + speseGen;
 
             // Spalmiamo la deduzione del mese pro-quota per la visualizzazione mensile
-            const utileLordo = Math.max(0, fatturatoAiFiniTasse - totUsciteDeducibili);
+            const utileLordo = Math.max(0, compensoPuro - totUsciteDeducibili);
 
             const cassaSoggettiva = utileLordo * 0.17;
             const percentualeIrpef = currentScaglione / 100.0;
+            // Nella simulazione mensile basica non scaliamo la cassa dall'irpef iterativamente per non complicare
             const irpef = utileLordo * percentualeIrpef;
 
             totTasseAccantonate += (cassaSoggettiva + irpef);
