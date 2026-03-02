@@ -1,24 +1,21 @@
+import { DEDUCTIBILITY_RATES } from './taxConstants';
+
 export type CategoriaSpesa = string;
 
 /**
  * Ritorna la percentuale di deducibilità (0.0 a 1.0) in base alla categoria.
- * Regole Prompt: Cancelleria/Software/Lavoro (1.0), Ristoranti (0.75), Auto (0.20), Alimenti/Altro (0.0).
+ * Usa il dizionario DEDUCTIBILITY_RATES per la logica Ordinario.
  */
 export function getDeductibilityPercentage(categoria: CategoriaSpesa): number {
     const catLow = categoria.toLowerCase();
 
-    if (catLow.includes("cancelleria") || catLow.includes("software") || catLow.includes("lavoro") || catLow.includes("formazione")) {
-        return 1.0; // 100%
+    // Controlla se esiste una chiave esatta o parziale nel dizionario
+    for (const [key, rate] of Object.entries(DEDUCTIBILITY_RATES)) {
+        if (catLow.includes(key.toLowerCase())) {
+            return rate;
+        }
     }
 
-    if (catLow.includes("ristorant")) {
-        return 0.75; // 75%
-    }
-
-    if (catLow.includes("auto") || catLow.includes("trasporti") || catLow.includes("carburante") || catLow.includes("viaggi")) {
-        return 0.20; // 20%
-    }
-
-    // Alimenti, Imprevisti, Altro ecc...
+    // Fallback: 0% se non trovato o non catalogato
     return 0.0;
 }

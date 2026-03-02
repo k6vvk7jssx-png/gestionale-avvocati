@@ -62,6 +62,8 @@ export default function Dashboard() {
   const [categorieSpesa, setCategorieSpesa] = useState(categorieIniziali);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [transazioniMese, setTransazioniMese] = useState<any[]>([]);
+  const [limiteRistorantiInfo, setLimiteRistorantiInfo] = useState<{ limite: number; speso: number; percentuale: number; superato: boolean } | null>(null);
+  const [regimeCorrente, setRegimeCorrente] = useState<string | null>(null);
 
   const [sogliaFaccina, setSogliaFaccina] = useState(40);
   const [showGuida, setShowGuida] = useState(false);
@@ -170,6 +172,7 @@ export default function Dashboard() {
             const compensoPuro = Number(c.compenso_base || c.compenso_lordo || 0);
             const speseGenerali = compensoPuro * 0.15;
 
+            // EPICA 3: Sottraggo le uscite deducibili dall'Imponibile Cassa per calcolare l' Utile Lordo reale
             const utileLordo = Math.max(0, (compensoPuro + speseGenerali) - totUsciteDeducibili);
 
             const secchio1_cpa = c.cpa_4 ? Number(c.cpa_4) : (compensoPuro + speseGenerali) * 0.04;
@@ -195,6 +198,42 @@ export default function Dashboard() {
 
       // Applica un safety cap
       if (totTasseAccantonate < 0) totTasseAccantonate = 0;
+
+      // EPICA 4: Calcolo YTD (Year-To-Date) per Limite 2% Ristoranti/Trasferte solo per Ordinario
+      let isRegimeOrdinario = false;
+      if (profile && profile.regime_fiscale === "ordinario") isRegimeOrdinario = true;
+      else if (localStorage.getItem("regime_fiscale_generale") === "ordinario") isRegimeOrdinario = true;
+
+      setRegimeCorrente(isRegimeOrdinario ? "ordinario" : "forfettario");
+
+      if (isRegimeOrdinario) {
+        const startOfYear = `${today.getFullYear()}-01-01`;
+        const { data: allCause } = await supabase.from('cause').select('compenso_base, compenso_lordo').eq('user_id', user?.id).gte('data_sentenza', startOfYear);
+        let ytdCompensi = 0;
+        if (allCause) {
+          allCause.forEach(c => ytdCompensi += Number(c.compenso_base || c.compenso_lordo || 0));
+        }
+
+        const { data: allUscite } = await supabase.from('transazioni').select('importo, categoria').eq('user_id', user?.id).eq('tipo', 'uscita').gte('data_transazione', startOfYear);
+        let ytdRistoranti = 0;
+        if (allUscite) {
+          allUscite.forEach(u => {
+            if (u.categoria === "Ristoranti" || u.categoria === "Ristoranti / Trasferte" || u.categoria?.toLowerCase().includes("ristorant")) {
+              ytdRistoranti += Number(u.importo);
+            }
+          });
+        }
+
+        // La legge dice il 2% del totale compensi percepiti
+        const limite = ytdCompensi * 0.02;
+        const pct = limite > 0 ? (ytdRistoranti / limite) * 100 : 0;
+        setLimiteRistorantiInfo({
+          limite: limite,
+          speso: ytdRistoranti,
+          percentuale: pct,
+          superato: ytdRistoranti >= limite
+        });
+      }
 
       setEntrateMensili(totEntrate);
       setTasseMensiliAccantonate(totTasseAccantonate);
@@ -343,6 +382,26 @@ export default function Dashboard() {
           <span style={{ fontSize: "1rem", fontWeight: "bold", color: "#ff9f0a" }}>€{tasseMensiliAccantonate.toFixed(2)}</span>
         </div>
       </div>
+
+      {/* ALERT GAMIFICATION FISCALE (EPICA 4) */}
+      {regimeCorrente === "ordinario" && limiteRistorantiInfo && limiteRistorantiInfo.limite > 0 && limiteRistorantiInfo.percentuale >= 75 && (
+        <div className="ios-card" style={{ marginTop: "1rem", backgroundColor: limiteRistorantiInfo.superato ? "rgba(255, 59, 48, 0.1)" : "rgba(255, 149, 0, 0.1)", border: `1px solid ${limiteRistorantiInfo.superato ? "var(--destructive)" : "#ff9f0a"}`, animation: "fadeIn 0.5s" }}>
+          <div style={{ display: "flex", gap: "12px", alignItems: "flex-start" }}>
+            <div style={{ fontSize: "2rem" }}>{limiteRistorantiInfo.superato ? "🛑" : "⚠️"}</div>
+            <div>
+              <h4 style={{ margin: "0 0 4px 0", color: limiteRistorantiInfo.superato ? "var(--destructive)" : "#cc7e00" }}>
+                {limiteRistorantiInfo.superato ? "Limite Ristoranti Superato" : "Attenzione: Limite Ristoranti Vicino"}
+              </h4>
+              <p style={{ fontSize: "0.85rem", margin: 0, opacity: 0.9 }}>
+                {limiteRistorantiInfo.superato
+                  ? `Hai superato il limite di legge del 2% annuo per dedurre i pasti (Speso: €${limiteRistorantiInfo.speso.toFixed(2)} / Limite: €${limiteRistorantiInfo.limite.toFixed(2)}). Le prossime fatture al ristorante non abbatteranno più le tue tasse.`
+                  : `Sei al ${limiteRistorantiInfo.percentuale.toFixed(0)}% del limite annuo (2% dei compensi) per ristoranti e hotel. (Speso: €${limiteRistorantiInfo.speso.toFixed(2)} / Limite: €${limiteRistorantiInfo.limite.toFixed(2)}).`
+                }
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       <h2 style={{ marginTop: "2rem" }}>Spese Settoriali Mensili</h2>
       <p style={{ fontSize: "0.9rem", opacity: 0.7 }}>Dal 1° del Mese</p>

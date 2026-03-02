@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useUser, useSession } from "@clerk/nextjs";
 import { createClient } from "@supabase/supabase-js";
@@ -278,6 +278,35 @@ export default function ScannerScontrini() {
     };
 
     const [mode, setMode] = useState<"scanner" | "manuale">("scanner");
+    const [regimeCorrente, setRegimeCorrente] = useState<string | null>(null);
+
+    // Carica regime utente all'avvio
+    useEffect(() => {
+        const regime = localStorage.getItem("regime_fiscale_generale");
+        setRegimeCorrente(regime);
+    }, []);
+
+    // Helper per determinare la percentuale al volo (per la UI sync)
+    // Non avvisa import() asincrono in render
+    const getPercentualeSync = (cat: string) => {
+        import('@/lib/deductibility').then(m => {
+            // Facciamo finta di farlo sync o usiamo un dizionario base se non vogliamo refetch
+        });
+        const catLow = cat.toLowerCase();
+        if (catLow.includes("cancelleria") || catLow.includes("software") || catLow.includes("formazione") || catLow.includes("lavoro")) return 1.0;
+        if (catLow.includes("ristorant")) return 0.75;
+        if (catLow.includes("auto") || catLow.includes("trasporti") || catLow.includes("carburante") || catLow.includes("viaggi")) return 0.20;
+        if (catLow.includes("uso promiscuo") || catLow.includes("telefonia") || catLow.includes("utenze")) return 0.80; // approssimazione
+        return 0.0;
+    };
+
+    // Variabili calcolate al volo per Manuale
+    const importoCorrettoManuale = parseImporto(spesaManuale.importo);
+    const percentualeAttualeManuale = getPercentualeSync(spesaManuale.categoria);
+
+    // Variabili calcolate al volo per Scanner
+    const importoCorrettoScanner = scannedData ? parseImporto(scannedData.importo) : 0;
+    const percentualeAttualeScanner = scannedData ? getPercentualeSync(scannedData.categoria) : 0;
 
     if (!isLoaded || !isSignedIn) return null;
 
@@ -382,6 +411,17 @@ export default function ScannerScontrini() {
                                 {scannedData.testoEstratto}
                             </div>
 
+                            {/* BADGE DEDUCIBILITA' IN TEMPO REALE SCANSIONE */}
+                            {regimeCorrente === "ordinario" && importoCorrettoScanner > 0 && (
+                                <div style={{ marginBottom: "1.5rem", padding: "10px", background: "rgba(52, 199, 89, 0.1)", border: "1px solid var(--success)", borderRadius: "8px", color: "var(--success)", fontSize: "0.9rem", display: "flex", alignItems: "center", gap: "8px", animation: "slideUp 0.3s ease-out" }}>
+                                    <span style={{ fontSize: "1.2rem" }}>💡</span>
+                                    <div>
+                                        <strong>Ordinario:</strong> Importo deducibile stimato
+                                        <div style={{ fontWeight: "bold", fontSize: "1.1rem", marginTop: "4px" }}>€{(importoCorrettoScanner * percentualeAttualeScanner).toFixed(2)} ({percentualeAttualeScanner * 100}%)</div>
+                                    </div>
+                                </div>
+                            )}
+
                             <button className="ios-btn-large" style={{ background: "var(--success)" }} onClick={salvaScanner} disabled={isSaving}>
                                 {isSaving ? "Salvataggio..." : `Conferma e Salva in ${scannedData.categoria}`}
                             </button>
@@ -410,9 +450,9 @@ export default function ScannerScontrini() {
                         onChange={(e) => setSpesaManuale({ ...spesaManuale, categoria: e.target.value })}
                     >
                         <option value="Alimenti">🛒 Alimenti</option>
-                        <option value="Ristoranti">🍽️ Ristoranti</option>
+                        <option value="Ristoranti">🍽️ Ristoranti / Trasferte</option>
                         <option value="Salute">💊 Salute</option>
-                        <option value="Lavoro">💼 Lavoro</option>
+                        <option value="Lavoro">💼 Lavoro / Affitto Studio</option>
                         <option value="Cancelleria">📎 Cancelleria</option>
                         <option value="Software">💻 Software</option>
                         <option value="Auto/Trasporti">🚗 Auto/Trasporti</option>
@@ -420,12 +460,23 @@ export default function ScannerScontrini() {
                         <option value="Viaggi">✈️ Viaggi</option>
                         <option value="Tasse">🏦 Tasse</option>
                         <option value="Senza Tasse">🆓 Senza Tasse</option>
-                        <option value="Utenze">💡 Utenze</option>
+                        <option value="Utenze">💡 Utenze Promiscue</option>
                         <option value="Formazione">📚 Formazione</option>
                         <option value="Abbigliamento">👔 Abbigliamento</option>
                         <option value="Imprevisti">⚠️ Imprevisti</option>
                         <option value="Altro">📦 Altro</option>
                     </select>
+
+                    {/* BADGE DEDUCIBILITA' IN TEMPO REALE */}
+                    {regimeCorrente === "ordinario" && importoCorrettoManuale > 0 && (
+                        <div style={{ marginTop: "1rem", padding: "10px", background: "rgba(52, 199, 89, 0.1)", border: "1px solid var(--success)", borderRadius: "8px", color: "var(--success)", fontSize: "0.9rem", display: "flex", alignItems: "center", gap: "8px", animation: "slideUp 0.3s ease-out" }}>
+                            <span style={{ fontSize: "1.2rem" }}>💡</span>
+                            <div>
+                                <strong>Ordinario:</strong> Importo deducibile ai fini IRPEF stimato:
+                                <strong style={{ marginLeft: "4px" }}>€{(importoCorrettoManuale * percentualeAttualeManuale).toFixed(2)}</strong>
+                            </div>
+                        </div>
+                    )}
 
                     <label style={{ display: "block", marginBottom: "0.5rem", marginTop: "1rem", fontSize: "0.9rem", opacity: 0.7 }}>Descrizione (Opzionale)</label>
                     <input
