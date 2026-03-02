@@ -118,20 +118,6 @@ export default function Dashboard() {
         cause.forEach(c => {
           const importo = Number(c.compenso_lordo || 0);
           totEntrate += importo;
-
-          const tipoFiscale = c.tipologia_fiscale || "forfettario_15"; // Fallback se colonna assente
-
-          if (tipoFiscale === "forfettario_5" || tipoFiscale === "forfettario_15") {
-            const imponibile = importo * 0.78;
-            const aliquota = tipoFiscale === "forfettario_5" ? 0.05 : 0.15;
-            totTasseAccantonate += (imponibile * aliquota) + (imponibile * 0.17);
-          } else if (tipoFiscale === "ordinario") {
-            const trattenuta = importo * 0.46;
-            totTasseAccantonate += (trattenuta * 0.6) + (trattenuta * 0.4); // Che equivale di fatto alla trattenuta totale
-          } else if (tipoFiscale === "free") {
-            // Nessuna tassa per regime Free/Rimborso
-            totTasseAccantonate += 0;
-          }
         });
       }
 
@@ -177,30 +163,39 @@ export default function Dashboard() {
           const tipoFiscale = c.tipologia_fiscale || "forfettario_15";
 
           if (tipoFiscale === "forfettario_5" || tipoFiscale === "forfettario_15") {
+            // Modello FORFETTARIO
             const compensoPuro = Number(c.compenso_base || c.compenso_lordo || 0);
-            const imponibile = compensoPuro * 0.78;
+            const speseGenerali = compensoPuro * 0.15;
+            const redditoImponibileLordo = (compensoPuro + speseGenerali) * 0.78;
 
-            const cassaSoggettiva = imponibile * 0.17;
-            const aliquotaSostitutiva = tipoFiscale === "forfettario_5" ? 0.05 : 0.15;
-            const impostaSostitutiva = imponibile * aliquotaSostitutiva;
+            const secchio1_cpa = c.cpa_4 ? Number(c.cpa_4) : (compensoPuro + speseGenerali) * 0.04;
+            const secchio2_cassa = redditoImponibileLordo * 0.17;
+            const aliquotaFisco = tipoFiscale === "forfettario_5" ? 0.05 : 0.15;
+            const secchio3_imposta = (redditoImponibileLordo - secchio2_cassa) * aliquotaFisco;
 
-            totTasseAccantonate += (cassaSoggettiva + impostaSostitutiva);
+            totTasseAccantonate += (secchio1_cpa + secchio2_cassa + secchio3_imposta);
 
           } else if (tipoFiscale === "ordinario") {
+            // Modello ORDINARIO
             const compensoPuro = Number(c.compenso_base || c.compenso_lordo || 0);
+            const speseGenerali = compensoPuro * 0.15;
 
-            // Spalmiamo la deduzione del mese pro-quota per la visualizzazione mensile
-            const utileLordo = Math.max(0, compensoPuro - totUsciteDeducibili);
+            const utileLordo = Math.max(0, (compensoPuro + speseGenerali) - totUsciteDeducibili);
 
-            const cassaSoggettiva = utileLordo * 0.17;
+            const secchio1_cpa = c.cpa_4 ? Number(c.cpa_4) : (compensoPuro + speseGenerali) * 0.04;
+            const secchio2_iva = c.iva_22 ? Number(c.iva_22) : 0;
+            const secchio3_cassa = utileLordo * 0.17;
+
             const percentualeIrpef = currentScaglione / 100.0;
-            // Nella simulazione mensile basica non scaliamo la cassa dall'irpef iterativamente per non complicare
-            const irpef = utileLordo * percentualeIrpef;
+            const baseIrpef = Math.max(0, utileLordo - secchio3_cassa);
+            const secchio4_irpef = baseIrpef * percentualeIrpef;
+            const secchio5_addizionali = baseIrpef * 0.03; // ~3%
 
-            totTasseAccantonate += (cassaSoggettiva + irpef);
+            const scontoRitenuta = c.ritenuta_20 ? Number(c.ritenuta_20) : 0;
 
-            // Evita di ri-sottrarre le stesse spese per le successive fatture dello stesso mese
-            totUsciteDeducibili = 0;
+            totTasseAccantonate += (secchio1_cpa + secchio2_iva + secchio3_cassa + secchio4_irpef + secchio5_addizionali - scontoRitenuta);
+
+            totUsciteDeducibili = 0; // Evita di ri-sottrarre le stesse spese per le successive fatture dello stesso mese
 
           } else if (tipoFiscale === "free") {
             totTasseAccantonate += 0;

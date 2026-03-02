@@ -100,16 +100,18 @@ export default function Tasse() {
                     const r = c.tipologia_fiscale || "forfettario_15";
 
                     if (r === "forfettario_5" || r === "forfettario_15") {
-                        // Nel forfettario non scala le spese, abbattimento coefficiente redditività fisso 78%
-                        const imponibile = compensoBase * 0.78;
+                        const speseGenerali = compensoBase * 0.15;
+                        const redditoImponibileLordo = (compensoBase + speseGenerali) * 0.78;
+
+                        const cassa = redditoImponibileLordo * 0.17;
                         const aliquota = r === "forfettario_5" ? 0.05 : 0.15;
-                        const tasse = imponibile * aliquota;
-                        const cassa = imponibile * 0.17;
+                        const tasse = (redditoImponibileLordo - cassa) * aliquota;
 
                         totTasse += tasse;
                         totCassa += cassa;
                     } else if (r === "ordinario") {
-                        imponibileOrdinarioAnnuo += compensoBase;
+                        const speseGenerali = compensoBase * 0.15;
+                        imponibileOrdinarioAnnuo += (compensoBase + speseGenerali);
                     }
                 });
             }
@@ -120,12 +122,11 @@ export default function Tasse() {
                 let baseImponibileFisco = imponibileOrdinarioAnnuo - speseTotaliDeducibili;
                 if (baseImponibileFisco < 0) baseImponibileFisco = 0;
 
-                // Cassa Forense Soggettiva al 17% calcolata sull'utile netto per il 2026
+                // Cassa Forense Soggettiva al 17% calcolata sull'utile netto 
                 cassaOrdinarioAnnuo = baseImponibileFisco * 0.17;
 
-                // Calcolo IRPEF progressivo semplificato (aliquota media ~28-35% in base al reddito, o piatta ipotetica)
-                // Usiamo un ~30% per semplicità sul gestore annuale
-                const tasseOrdinario = baseImponibileFisco * 0.30;
+                // Calcolo IRPEF progressivo semplificato (aliquota media ~30% o 33% per il gestore annuale, e includiamo un ~3% di addizionali)
+                const tasseOrdinario = (baseImponibileFisco - cassaOrdinarioAnnuo) * 0.33;
 
                 totTasse += tasseOrdinario;
                 totCassa += cassaOrdinarioAnnuo;
@@ -155,16 +156,22 @@ export default function Tasse() {
         let imponibile = 0, tasse = 0, cassa = 0, netto = 0;
 
         if (regime === "forfettario_5" || regime === "forfettario_15") {
-            imponibile = importoLordo * 0.78;
+            const speseGenerali = importoLordo * 0.15;
+            imponibile = (importoLordo + speseGenerali) * 0.78;
             const aliquotaTasse = regime === "forfettario_5" ? 0.05 : 0.15;
-            tasse = imponibile * aliquotaTasse;
+
             cassa = imponibile * 0.17; // Cassa Forense 17% 2026
+            tasse = (imponibile - cassa) * aliquotaTasse; // Tasse sul reddito netto Cassa
+
             netto = importoLordo - tasse - cassa;
         } else if (regime === "ordinario") {
-            imponibile = importoLordo;
+            const speseGenerali = importoLordo * 0.15;
+            imponibile = importoLordo + speseGenerali;
+
             cassa = imponibile * 0.17; // Cassa Forense 17% 2026
-            // Simulazione approssimativa IRPEF al 30% per il calcolatore spicciolo
-            tasse = imponibile * 0.30;
+            // Simulazione approssimativa IRPEF al 30% sulle rimanenze 
+            tasse = (imponibile - cassa) * 0.30;
+
             netto = importoLordo - tasse - cassa;
         } else {
             // Free
