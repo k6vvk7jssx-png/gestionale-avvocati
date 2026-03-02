@@ -41,7 +41,7 @@ export default function Home() {
         {/* Header Sinistro: Logo */}
         <div className="relative z-10 flex items-center gap-3">
           <Scale className="w-8 h-8 text-white" strokeWidth={1.5} />
-          <span className="text-2xl font-semibold tracking-wide">LegaleFiscale.it</span>
+          <span className="text-2xl font-semibold tracking-wide">Gestionale Facile</span>
         </div>
 
         {/* Contenuto Centrale Sinistro */}
