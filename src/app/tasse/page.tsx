@@ -89,47 +89,67 @@ export default function Tasse() {
             let totNetto = 0;
 
             let imponibileOrdinarioAnnuo = 0;
-            let cassaOrdinarioAnnuo = 0;
+            let totCpaOrdinario = 0;
+            let totIvaOrdinario = 0;
+            let totRitenutaOrdinario = 0;
 
             if (cause) {
                 cause.forEach(c => {
-                    const importoLordo = Number(c.compenso_lordo || 0);
-                    const compensoBase = Number(c.compenso_base || importoLordo);
-                    totLordo += importoLordo;
-
+                    const compensoBase = Number(c.compenso_base || c.compenso_lordo || 0);
                     const r = c.tipologia_fiscale || "forfettario_15";
 
                     if (r === "forfettario_5" || r === "forfettario_15") {
                         const speseGenerali = compensoBase * 0.15;
                         const redditoImponibileLordo = (compensoBase + speseGenerali) * 0.78;
 
-                        const cassa = redditoImponibileLordo * 0.17;
-                        const aliquota = r === "forfettario_5" ? 0.05 : 0.15;
-                        const tasse = (redditoImponibileLordo - cassa) * aliquota;
+                        const cassaSoggettiva = redditoImponibileLordo * 0.17;
+                        const cpa = c.cpa_4 ? Number(c.cpa_4) : (compensoBase + speseGenerali) * 0.04;
+                        const cassaForenseTotale = cassaSoggettiva + cpa;
 
+                        const aliquota = r === "forfettario_5" ? 0.05 : 0.15;
+                        const tasse = redditoImponibileLordo * aliquota;
+
+                        // Per forfettario volume d'affari è Compenso base + 15% spese + CPA in fattura (esente IVA)
+                        const volumeAffari = c.compenso_lordo ? Number(c.compenso_lordo) : (compensoBase + speseGenerali + cpa);
+
+                        totLordo += volumeAffari;
                         totTasse += tasse;
-                        totCassa += cassa;
+                        totCassa += cassaForenseTotale;
+
                     } else if (r === "ordinario") {
                         const speseGenerali = compensoBase * 0.15;
                         imponibileOrdinarioAnnuo += (compensoBase + speseGenerali);
+
+                        const cpa = c.cpa_4 ? Number(c.cpa_4) : (compensoBase + speseGenerali) * 0.04;
+                        const iva = c.iva_22 ? Number(c.iva_22) : (compensoBase + speseGenerali + cpa) * 0.22;
+
+                        totCpaOrdinario += cpa;
+                        totIvaOrdinario += iva;
+                        totRitenutaOrdinario += c.ritenuta_20 ? Number(c.ritenuta_20) : 0;
+
+                        const volumeAffari = c.compenso_lordo ? Number(c.compenso_lordo) : (compensoBase + speseGenerali + cpa + iva);
+                        totLordo += volumeAffari;
                     }
                 });
             }
 
-            // Calcolo finale Tasse per Ordinario se presente reddito ordinario, abbattendo le spese
             if (imponibileOrdinarioAnnuo > 0) {
-                // Sottraiamo le spese deducibili dall'imponibile Irpef
-                let baseImponibileFisco = imponibileOrdinarioAnnuo - speseTotaliDeducibili;
-                if (baseImponibileFisco < 0) baseImponibileFisco = 0;
+                // Sottraiamo le spese deducibili dall'imponibile di cassa ordinario
+                let imponibileCassa = imponibileOrdinarioAnnuo - speseTotaliDeducibili;
+                if (imponibileCassa < 0) imponibileCassa = 0;
 
-                // Cassa Forense Soggettiva al 17% calcolata sull'utile netto 
-                cassaOrdinarioAnnuo = baseImponibileFisco * 0.17;
+                const cassaSoggettiva = imponibileCassa * 0.17;
+                const cassaForenseTotale = cassaSoggettiva + totCpaOrdinario;
 
-                // Calcolo IRPEF progressivo semplificato (aliquota media ~30% o 33% per il gestore annuale, e includiamo un ~3% di addizionali)
-                const tasseOrdinario = (baseImponibileFisco - cassaOrdinarioAnnuo) * 0.33;
+                const imponibileIrpef = imponibileCassa - cassaSoggettiva;
+                // Calcolo IRPEF medio (stima a 33% e 3% addizionali)
+                const irpef = imponibileIrpef * 0.33;
+                const addizionali = imponibileIrpef * 0.03;
 
-                totTasse += tasseOrdinario;
-                totCassa += cassaOrdinarioAnnuo;
+                const fiscoTotale = totIvaOrdinario + irpef + addizionali - totRitenutaOrdinario;
+
+                totTasse += fiscoTotale;
+                totCassa += cassaForenseTotale;
             }
 
             totNetto = totLordo - totTasse - totCassa;
@@ -153,32 +173,49 @@ export default function Tasse() {
         const importoLordo = parseFloat(lordo.replace(",", "."));
         if (isNaN(importoLordo) || importoLordo <= 0) return;
 
-        let imponibile = 0, tasse = 0, cassa = 0, netto = 0;
+        let imponibile = 0, tasse = 0, cassa = 0, netto = 0, volumeAffariLordo = 0;
 
         if (regime === "forfettario_5" || regime === "forfettario_15") {
-            const speseGenerali = importoLordo * 0.15;
-            imponibile = (importoLordo + speseGenerali) * 0.78;
+            const compensoBase = importoLordo;
+            const speseGenerali = compensoBase * 0.15;
+            const redditoImponibileLordo = (compensoBase + speseGenerali) * 0.78;
+
+            const cassaSoggettiva = redditoImponibileLordo * 0.17;
+            const cpa = (compensoBase + speseGenerali) * 0.04;
+            cassa = cassaSoggettiva + cpa;
+
             const aliquotaTasse = regime === "forfettario_5" ? 0.05 : 0.15;
+            tasse = redditoImponibileLordo * aliquotaTasse;
 
-            cassa = imponibile * 0.17; // Cassa Forense 17% 2026
-            tasse = (imponibile - cassa) * aliquotaTasse; // Tasse sul reddito netto Cassa
-
-            netto = importoLordo - tasse - cassa;
+            volumeAffariLordo = compensoBase + speseGenerali + cpa;
+            imponibile = redditoImponibileLordo;
+            netto = volumeAffariLordo - tasse - cassa;
         } else if (regime === "ordinario") {
-            const speseGenerali = importoLordo * 0.15;
-            imponibile = importoLordo + speseGenerali;
+            const compensoBase = importoLordo;
+            const speseGenerali = compensoBase * 0.15;
+            const speseDeducibili = 0; // Simulazione manuale non ha spese caricate
 
-            cassa = imponibile * 0.17; // Cassa Forense 17% 2026
-            // Simulazione approssimativa IRPEF al 30% sulle rimanenze 
-            tasse = (imponibile - cassa) * 0.30;
+            const imponibileCassa = (compensoBase + speseGenerali) - speseDeducibili;
+            const cassaSoggettiva = imponibileCassa * 0.17;
+            const cpa = (compensoBase + speseGenerali) * 0.04;
+            cassa = cassaSoggettiva + cpa;
 
-            netto = importoLordo - tasse - cassa;
+            const ivaDaVersare = (compensoBase + speseGenerali + cpa) * 0.22;
+
+            const imponibileIrpef = imponibileCassa - cassaSoggettiva;
+            const irpef = imponibileIrpef * 0.43; // Simulazione su scaglione 43%
+            const addizionali = imponibileIrpef * 0.03;
+            tasse = ivaDaVersare + irpef + addizionali;
+
+            volumeAffariLordo = compensoBase + speseGenerali + cpa + ivaDaVersare;
+            imponibile = imponibileIrpef;
+            netto = volumeAffariLordo - tasse - cassa;
         } else {
             // Free
-            imponibile = 0; tasse = 0; cassa = 0; netto = importoLordo;
+            imponibile = 0; tasse = 0; cassa = 0; netto = importoLordo; volumeAffariLordo = importoLordo;
         }
 
-        setRisultatoManuale({ imponibile, tasse, cassa, netto });
+        setRisultatoManuale({ imponibile, tasse, cassa, netto, volumeAffariLordo });
     };
 
     if (!isLoaded || !isSignedIn) return null;
@@ -301,13 +338,18 @@ export default function Tasse() {
                             <h2 style={{ textAlign: "center", marginBottom: "1.5rem" }}>Risultato Simulato</h2>
 
                             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "1rem", borderBottom: "1px solid var(--border)", paddingBottom: "0.5rem" }}>
-                                <span>Lordo Inserito</span>
+                                <span>Volume d'Affari Lordo</span>
+                                <span style={{ fontWeight: "600", color: "var(--foreground)" }}>€{risultatoManuale.volumeAffariLordo.toFixed(2)}</span>
+                            </div>
+
+                            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "1rem", borderBottom: "1px solid var(--border)", paddingBottom: "0.5rem" }}>
+                                <span style={{ opacity: 0.8 }}>Compenso Base Inserito</span>
                                 <span style={{ fontWeight: "600" }}>€{parseFloat(lordo).toFixed(2)}</span>
                             </div>
 
                             {regime !== 'free' && (
                                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "1rem", borderBottom: "1px solid var(--border)", paddingBottom: "0.5rem" }}>
-                                    <span>Imponibile Tassabile</span>
+                                    <span style={{ opacity: 0.8 }}>Imponibile Tassabile (Cassa Dedotta)</span>
                                     <span style={{ fontWeight: "600" }}>€{risultatoManuale.imponibile.toFixed(2)}</span>
                                 </div>
                             )}

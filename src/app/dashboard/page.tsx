@@ -171,7 +171,7 @@ export default function Dashboard() {
             const secchio1_cpa = c.cpa_4 ? Number(c.cpa_4) : (compensoPuro + speseGenerali) * 0.04;
             const secchio2_cassa = redditoImponibileLordo * 0.17;
             const aliquotaFisco = tipoFiscale === "forfettario_5" ? 0.05 : 0.15;
-            const secchio3_imposta = (redditoImponibileLordo - secchio2_cassa) * aliquotaFisco;
+            const secchio3_imposta = redditoImponibileLordo * aliquotaFisco;
 
             totTasseAccantonate += (secchio1_cpa + secchio2_cassa + secchio3_imposta);
 
