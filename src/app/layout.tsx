@@ -1,4 +1,4 @@
-import { ClerkProvider, SignedIn, SignedOut, SignInButton, UserButton } from "@clerk/nextjs";
+import { ClerkProvider, SignedIn, SignedOut, UserButton } from "@clerk/nextjs";
 import Link from 'next/link';
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";

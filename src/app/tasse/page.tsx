@@ -18,7 +18,7 @@ export default function Tasse() {
                     let clerkToken;
                     try {
                         clerkToken = await session?.getToken({ template: 'supabase' });
-                    } catch (e) {
+                    } catch {
                         console.warn("Nessun template 'supabase' trovato in Clerk, uso token default");
                         clerkToken = await session?.getToken();
                     }
@@ -35,8 +35,7 @@ export default function Tasse() {
     const [lordo, setLordo] = useState<string>("");
     const [regime, setRegime] = useState<"forfettario_5" | "forfettario_15" | "ordinario" | "free">("forfettario_15");
     const [scaglioneManuale, setScaglioneManuale] = useState<number>(43);
-    const [scaglioneUtente, setScaglioneUtente] = useState<number>(33);
-    const [risultatoManuale, setRisultatoManuale] = useState<any>(null);
+    const [risultatoManuale, setRisultatoManuale] = useState<Record<string, number> | null>(null);
 
     // Dati dal Database
     const [datiAnnuali, setDatiAnnuali] = useState({
@@ -52,6 +51,7 @@ export default function Tasse() {
         if (isSignedIn && user && mod === "auto") {
             calcolaTasseAnnualiReali();
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isSignedIn, user, mod]);
 
     const calcolaTasseAnnualiReali = async () => {
@@ -83,7 +83,6 @@ export default function Tasse() {
             let currentScaglione = 33;
             if (profile?.expected_irpef_bracket) {
                 currentScaglione = parseInt(profile.expected_irpef_bracket);
-                setScaglioneUtente(currentScaglione);
                 setScaglioneManuale(currentScaglione); // Init simulatore col valore utente
             }
 
@@ -269,7 +268,7 @@ export default function Tasse() {
                             <h2 style={{ textAlign: "center", marginBottom: "1.5rem" }}>Quadro Riassuntivo Annuo</h2>
 
                             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "1rem", borderBottom: "1px solid var(--border)", paddingBottom: "0.5rem" }}>
-                                <span style={{ opacity: 0.8 }}>Volume d'Affari Lordo</span>
+                                <span style={{ opacity: 0.8 }}>Volume d&apos;Affari Lordo</span>
                                 <span style={{ fontWeight: "600", color: "var(--foreground)" }}>€{datiAnnuali.incassatoLordo.toFixed(2)}</span>
                             </div>
 
@@ -299,7 +298,7 @@ export default function Tasse() {
 
             {mod === "manual" && (
                 <>
-                    <p>Simula l'incasso di una fattura o del lordo per visualizzare il netto stimato ad personam.</p>
+                    <p>Simula l&apos;incasso di una fattura o del lordo per visualizzare il netto stimato ad personam.</p>
                     <div className="ios-card" style={{ animation: "slideUp 0.3s ease-out" }}>
                         <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: "600" }}>
                             Incasso Lordo (€)
@@ -375,7 +374,7 @@ export default function Tasse() {
                             <h2 style={{ textAlign: "center", marginBottom: "1.5rem" }}>Risultato Simulato</h2>
 
                             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "1rem", borderBottom: "1px solid var(--border)", paddingBottom: "0.5rem" }}>
-                                <span>Volume d'Affari Lordo</span>
+                                <span>Volume d&apos;Affari Lordo</span>
                                 <span style={{ fontWeight: "600", color: "var(--foreground)" }}>€{risultatoManuale.volumeAffariLordo.toFixed(2)}</span>
                             </div>
 

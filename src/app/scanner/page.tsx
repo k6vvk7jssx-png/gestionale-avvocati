@@ -18,7 +18,7 @@ export default function ScannerScontrini() {
         if (!val) return 0;
         if (typeof val === 'number') return val;
         // Se l'utente scrive 1.500,50 rimuove i punti e la virgola diventa punto
-        let cleaned = val.replace(/\./g, '').replace(',', '.');
+        const cleaned = val.replace(/\./g, '').replace(',', '.');
         const parsed = parseFloat(cleaned);
         return isNaN(parsed) ? 0 : parsed;
     };
@@ -30,7 +30,7 @@ export default function ScannerScontrini() {
                     let clerkToken;
                     try {
                         clerkToken = await session?.getToken({ template: 'supabase' });
-                    } catch (e) {
+                    } catch {
                         console.warn("Nessun template 'supabase' trovato in Clerk, uso token default");
                         clerkToken = await session?.getToken();
                     }
@@ -138,7 +138,7 @@ export default function ScannerScontrini() {
             let importoEstratto = 0;
             const regexTotale = /(?:totale|importo|pagato|eur|euro|€)\s*[:.-]?\s*(\d{1,4}[.,]\d{2})/ig;
             let match;
-            let massimi = [];
+            const massimi = [];
 
             while ((match = regexTotale.exec(testoLows)) !== null) {
                 const pulito = match[1].replace(',', '.');
@@ -222,6 +222,7 @@ export default function ScannerScontrini() {
             setSpesaManuale({ importo: "", categoria: "Altro", descrizione: "" });
             router.refresh();
             router.push('/dashboard');
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (err: any) {
             console.error(err);
             alert("Si è verificato un errore nel salvataggio. Controlla i permessi o le policy: " + err.message);
@@ -267,6 +268,7 @@ export default function ScannerScontrini() {
             setScannedData(null);
             router.refresh();
             router.push('/dashboard');
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (err: any) {
             console.error(err);
             alert("Si è verificato un errore nel salvataggio scanner. " + err.message);
@@ -300,7 +302,7 @@ export default function ScannerScontrini() {
 
             {mode === 'scanner' ? (
                 <>
-                    <p>Scatta una foto a scontrini o fatture di spesa. L'AI estrarrà l'importo e proporrà una categoria.</p>
+                    <p>Scatta una foto a scontrini o fatture di spesa. L&apos;AI estrarrà l&apos;importo e proporrà una categoria.</p>
                     <div className="ios-card" style={{ textAlign: "center" }}>
                         {preview ? (
                             <div style={{ marginBottom: "1.5rem" }}>

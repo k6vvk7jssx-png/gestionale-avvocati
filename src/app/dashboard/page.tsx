@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { ArcElement, Chart as ChartJS, Legend, Tooltip } from "chart.js";
 import { Pie } from "react-chartjs-2";
 import { useUser, useSession } from "@clerk/nextjs";
@@ -36,14 +36,14 @@ export default function Dashboard() {
   const { session } = useSession();
   const [selectedCategory, setSelectedCategory] = useState<{ nome: string, totale: number, icona: string } | null>(null);
 
-  const getSupabase = () => {
+  const getSupabase = useCallback(() => {
     return createClient(supabaseUrl, supabaseKey, {
       global: {
         fetch: async (url, options = {}) => {
           let clerkToken;
           try {
             clerkToken = await session?.getToken({ template: 'supabase' });
-          } catch (e) {
+          } catch {
             console.warn("Nessun template 'supabase' trovato in Clerk, uso token default");
             clerkToken = await session?.getToken(); // Fallback
           }
@@ -53,30 +53,21 @@ export default function Dashboard() {
         },
       },
     });
-  };
+  }, [session]);
 
   // Dati Dinamici
   const [entrateMensili, setEntrateMensili] = useState(0);
   const [usciteMensili, setUsciteMensili] = useState(0);
   const [tasseMensiliAccantonate, setTasseMensiliAccantonate] = useState(0);
   const [categorieSpesa, setCategorieSpesa] = useState(categorieIniziali);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [transazioniMese, setTransazioniMese] = useState<any[]>([]);
 
   const [sogliaFaccina, setSogliaFaccina] = useState(40);
-  const [scaglioneIrpef, setScaglioneIrpef] = useState<number>(23); // Default lowest bracket
-  const [regimeProfilo, setRegimeProfilo] = useState<string>("forfettario_15");
 
-  useEffect(() => {
-    // Si cerca prima nel local storage come fallback rapido
-    const savedSoglia = localStorage.getItem("soglia_faccina");
-    if (savedSoglia) setSogliaFaccina(Number(savedSoglia));
+  // Rimosso useEffect anticipato
 
-    if (isSignedIn && user) {
-      caricaDatiMensili();
-    }
-  }, [isSignedIn, user]);
-
-  const caricaDatiMensili = async () => {
+  const caricaDatiMensili = useCallback(async () => {
     const today = new Date();
     const startOfMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-01`;
 
@@ -94,10 +85,8 @@ export default function Dashboard() {
       if (profile && !errProfile) {
         if (profile.sad_face_threshold) setSogliaFaccina(profile.sad_face_threshold);
         if (profile.expected_irpef_bracket) {
-          setScaglioneIrpef(parseInt(profile.expected_irpef_bracket));
           currentScaglione = parseInt(profile.expected_irpef_bracket);
         }
-        if (profile.regime_fiscale) setRegimeProfilo(profile.regime_fiscale);
       }
 
       // 1. Carica le Cause
@@ -214,7 +203,17 @@ export default function Dashboard() {
     } catch (error) {
       console.error("Errore recupero dashboard:", error);
     }
-  };
+  }, [getSupabase, user]);
+
+  useEffect(() => {
+    // Si cerca prima nel local storage come fallback rapido
+    const savedSoglia = localStorage.getItem("soglia_faccina");
+    if (savedSoglia) setSogliaFaccina(Number(savedSoglia));
+
+    if (isSignedIn && user) {
+      caricaDatiMensili();
+    }
+  }, [isSignedIn, user, caricaDatiMensili]);
 
   const handleDeleteTransazione = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -233,9 +232,10 @@ export default function Dashboard() {
 
       await caricaDatiMensili();
       setSelectedCategory(null); // Chiude o rinfresca il modale
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      alert("Errore nell'eliminazione: " + err.message);
+      const msg = err instanceof Error ? err.message : String(err);
+      alert("Errore nell&apos;eliminazione: " + msg);
     }
   };
 

@@ -30,7 +30,7 @@ export default function Impostazioni() {
     const [scaglioneIrpef, setScaglioneIrpef] = useState<"23" | "33" | "43">("23");
     const [sogliaFaccina, setSogliaFaccina] = useState<string>("40");
     const [isSaved, setIsSaved] = useState(false);
-    const [isLoading, setIsLoading] = useState(true);
+    const [, setIsLoading] = useState(true);
 
     useEffect(() => {
         if (!isSignedIn || !user?.id) return;
@@ -65,15 +65,16 @@ export default function Impostazioni() {
         };
 
         salvaProfiloDB();
-    }, [isSignedIn, user]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isSignedIn, user, session]); // Added session to dependencies
 
     const salvaImpostazioni = async () => {
         if (!user?.id) return;
         setIsLoading(true);
 
-        let regimeDaSalvare = regime;
+        let regimeDaSalvare = regime as string;
         if (regime === "forfettario") {
-            regimeDaSalvare = `forfettario_${aliquotaForfettario}` as any;
+            regimeDaSalvare = `forfettario_${aliquotaForfettario}`;
         }
 
         const supabase = getSupabase();
@@ -98,7 +99,8 @@ export default function Impostazioni() {
 
             setIsSaved(true);
             setTimeout(() => setIsSaved(false), 3000);
-        } catch (err: any) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        } catch (err: any) { // Kept 'any' for err as it's a catch block and type is often unknown
             console.error("Errore salvataggio profilo:", err);
             alert("Errore salvataggio: " + err.message);
         } finally {
@@ -199,7 +201,7 @@ export default function Impostazioni() {
             <div className="ios-card" style={{ marginBottom: "2rem" }}>
                 <h3 style={{ marginBottom: "1rem" }}>Avvisi Dashboard (Faccina)</h3>
                 <p style={{ fontSize: "0.9rem", opacity: 0.8, marginBottom: "1rem" }}>
-                    Imposta la soglia di spesa massima rispetto alle entrate prima che l'emoticon in Dashboard diventi triste 😢.
+                    Imposta la soglia di spesa massima rispetto alle entrate prima che l&apos;emoticon in Dashboard diventi triste 😢.
                 </p>
 
                 <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: "600" }}>Soglia di Spesa (%)</label>

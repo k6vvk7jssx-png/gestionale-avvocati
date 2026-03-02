@@ -21,7 +21,7 @@ export default function Cause() {
                     let clerkToken;
                     try {
                         clerkToken = await session?.getToken({ template: 'supabase' });
-                    } catch (e) {
+                    } catch {
                         console.warn("Nessun template 'supabase' trovato in Clerk, uso token default");
                         clerkToken = await session?.getToken();
                     }
@@ -32,6 +32,7 @@ export default function Cause() {
             },
         });
     };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const [causeList, setCauseList] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
@@ -64,12 +65,14 @@ export default function Cause() {
     useEffect(() => {
         const savedRegime = localStorage.getItem("regime_fiscale_generale");
         if (savedRegime) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             setNuovaCausa(prev => ({ ...prev, tipologia_fiscale: savedRegime as any }));
         }
 
         if (isSignedIn && user) {
             loadCause();
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isSignedIn, user]);
 
     const loadCause = async () => {
@@ -141,6 +144,7 @@ export default function Cause() {
             });
             await loadCause();
 
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (error: any) {
             console.error('Errore nel salvataggio:', error);
             alert("Errore salva file: " + error.message);
@@ -169,6 +173,7 @@ export default function Cause() {
 
             // Ricarica la lista per mostrare la riga rimossa
             await loadCause();
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (error: any) {
             console.error('Errore nella cancellazione:', error);
             alert("Impossibile eliminare: " + error.message);
@@ -197,7 +202,7 @@ export default function Cause() {
             ) : causeList.length === 0 ? (
                 <div style={{ textAlign: "center", padding: "2rem", opacity: 0.5 }}>
                     <div style={{ fontSize: "3rem", marginBottom: "1rem" }}>⚖️</div>
-                    Nessun compenso registrato. Premi il "+" in alto a destra per registrare la tua prima parcella o liquidazione.
+                    Nessun compenso registrato. Premi il &quot;+&quot; in alto a destra per registrare la tua prima parcella o liquidazione.
                 </div>
             ) : (
                 causeList.map((causa) => (
@@ -290,6 +295,7 @@ export default function Cause() {
                             className="ios-input"
                             style={{ appearance: "none" }}
                             value={nuovaCausa.tipologia_fiscale}
+                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
                             onChange={(e) => setNuovaCausa({ ...nuovaCausa, tipologia_fiscale: e.target.value as any })}
                         >
                             <option value="forfettario_5">Forfettario 5%</option>
