@@ -34,6 +34,8 @@ export default function Tasse() {
     // Stati per Calcolatore Manuale
     const [lordo, setLordo] = useState<string>("");
     const [regime, setRegime] = useState<"forfettario_5" | "forfettario_15" | "ordinario" | "free">("forfettario_15");
+    const [scaglioneManuale, setScaglioneManuale] = useState<number>(43);
+    const [scaglioneUtente, setScaglioneUtente] = useState<number>(33);
     const [risultatoManuale, setRisultatoManuale] = useState<any>(null);
 
     // Dati dal Database
@@ -70,6 +72,19 @@ export default function Tasse() {
 
             if (errCause) {
                 console.error("Errore fetch cause annue:", errCause);
+            }
+
+            const { data: profile } = await supabase
+                .from('profiles')
+                .select('expected_irpef_bracket')
+                .eq('user_id', user?.id)
+                .single();
+
+            let currentScaglione = 33;
+            if (profile?.expected_irpef_bracket) {
+                currentScaglione = parseInt(profile.expected_irpef_bracket);
+                setScaglioneUtente(currentScaglione);
+                setScaglioneManuale(currentScaglione); // Init simulatore col valore utente
             }
 
             // 2. Prendi tutte le Spese dell'anno corrente
@@ -142,8 +157,8 @@ export default function Tasse() {
                 const cassaForenseTotale = cassaSoggettiva + totCpaOrdinario;
 
                 const imponibileIrpef = imponibileCassa - cassaSoggettiva;
-                // Calcolo IRPEF medio (stima a 33% e 3% addizionali)
-                const irpef = imponibileIrpef * 0.33;
+                // Calcolo IRPEF basato sullo scaglione previsionale utente
+                const irpef = imponibileIrpef * (currentScaglione / 100.0);
                 const addizionali = imponibileIrpef * 0.03;
 
                 const fiscoTotale = totIvaOrdinario + irpef + addizionali - totRitenutaOrdinario;
@@ -203,7 +218,7 @@ export default function Tasse() {
             const ivaDaVersare = (compensoBase + speseGenerali + cpa) * 0.22;
 
             const imponibileIrpef = imponibileCassa - cassaSoggettiva;
-            const irpef = imponibileIrpef * 0.43; // Simulazione su scaglione 43%
+            const irpef = imponibileIrpef * (scaglioneManuale / 100.0); // Simulazione su scaglione scelto
             const addizionali = imponibileIrpef * 0.03;
             tasse = ivaDaVersare + irpef + addizionali;
 
@@ -327,6 +342,28 @@ export default function Tasse() {
                                 Esente / Senza Tasse
                             </button>
                         </div>
+
+                        {regime === 'ordinario' && (
+                            <>
+                                <label style={{ display: "block", marginTop: "1rem", marginBottom: "0.5rem", fontWeight: "600" }}>
+                                    Scaglione IRPEF Sceglibile (Simulazione)
+                                </label>
+                                <div className="ios-select-group" style={{ marginBottom: "1rem" }}>
+                                    <button
+                                        className={`ios-segment ${scaglioneManuale === 23 ? 'active' : ''}`}
+                                        onClick={() => setScaglioneManuale(23)}
+                                    >23%</button>
+                                    <button
+                                        className={`ios-segment ${scaglioneManuale === 33 ? 'active' : ''}`}
+                                        onClick={() => setScaglioneManuale(33)}
+                                    >33%</button>
+                                    <button
+                                        className={`ios-segment ${scaglioneManuale === 43 ? 'active' : ''}`}
+                                        onClick={() => setScaglioneManuale(43)}
+                                    >43%</button>
+                                </div>
+                            </>
+                        )}
 
                         <button className="ios-btn-large" onClick={calcolaManuale}>
                             Calcola Netto
