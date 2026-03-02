@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useUser, useSession } from "@clerk/nextjs";
+import { Book } from "lucide-react";
 import { createClient } from "@supabase/supabase-js";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -37,7 +38,17 @@ export default function Tasse() {
     const [scaglioneManuale, setScaglioneManuale] = useState<number>(43);
     const [risultatoManuale, setRisultatoManuale] = useState<Record<string, number> | null>(null);
 
-    // Dati dal Database
+    interface CausaDettaglio {
+        id: string;
+        nome: string;
+        data: string;
+        lordo: number;
+        tasse: number;
+        cassa: number;
+        netto: number;
+        regime: string;
+    }
+
     const [datiAnnuali, setDatiAnnuali] = useState({
         incassatoLordo: 0,
         tasseDaPagare: 0,
@@ -45,7 +56,9 @@ export default function Tasse() {
         nettoTasche: 0,
         speseDeducibili: 0
     });
+    const [dettagliCause, setDettagliCause] = useState<CausaDettaglio[]>([]);
     const [isLoadingDati, setIsLoadingDati] = useState(true);
+    const [showTutorial, setShowTutorial] = useState(false);
 
     useEffect(() => {
         if (isSignedIn && user && mod === "auto") {
@@ -107,10 +120,17 @@ export default function Tasse() {
             let totIvaOrdinario = 0;
             let totRitenutaOrdinario = 0;
 
+            let causeDettaglio: CausaDettaglio[] = [];
+
             if (cause) {
                 cause.forEach(c => {
                     const compensoBase = Number(c.compenso_base || c.compenso_lordo || 0);
                     const r = c.tipologia_fiscale || "forfettario_15";
+
+                    let detLordo = 0;
+                    let detTasse = 0;
+                    let detCassa = 0;
+                    let detNetto = 0;
 
                     if (r === "forfettario_5" || r === "forfettario_15") {
                         const speseGenerali = compensoBase * 0.15;
@@ -130,6 +150,11 @@ export default function Tasse() {
                         totTasse += tasse;
                         totCassa += cassaForenseTotale;
 
+                        detLordo = volumeAffari;
+                        detTasse = tasse;
+                        detCassa = cassaForenseTotale;
+                        detNetto = volumeAffari - tasse - cassaForenseTotale;
+
                     } else if (r === "ordinario") {
                         const speseGenerali = compensoBase * 0.15;
                         imponibileOrdinarioAnnuo += (compensoBase + speseGenerali);
@@ -139,11 +164,39 @@ export default function Tasse() {
 
                         totCpaOrdinario += cpa;
                         totIvaOrdinario += iva;
-                        totRitenutaOrdinario += c.ritenuta_20 ? Number(c.ritenuta_20) : 0;
+                        const ritenutaItem = c.ritenuta_20 ? Number(c.ritenuta_20) : 0;
+                        totRitenutaOrdinario += ritenutaItem;
 
                         const volumeAffari = c.compenso_lordo ? Number(c.compenso_lordo) : (compensoBase + speseGenerali + cpa + iva);
                         totLordo += volumeAffari;
+
+                        // Calcolo proporzionale singola fattura per lo spaccato visivo
+                        const imponibileCassaItem = compensoBase + speseGenerali;
+                        const cassaSoggettivaItem = imponibileCassaItem * 0.17;
+                        const cassaForenseItem = cassaSoggettivaItem + cpa;
+
+                        const imponibileIrpefItem = imponibileCassaItem - cassaSoggettivaItem;
+                        const irpefItem = imponibileIrpefItem * (currentScaglione / 100.0);
+                        const addizionaliItem = imponibileIrpefItem * 0.03;
+
+                        const tasseItem = iva + irpefItem + addizionaliItem - ritenutaItem;
+
+                        detLordo = volumeAffari;
+                        detTasse = tasseItem;
+                        detCassa = cassaForenseItem;
+                        detNetto = volumeAffari - tasseItem - cassaForenseItem;
                     }
+
+                    causeDettaglio.push({
+                        id: c.id,
+                        nome: c.nome_causa || "Senza Nome",
+                        data: c.data_registrazione || c.created_at || new Date().toISOString(),
+                        lordo: detLordo,
+                        tasse: detTasse,
+                        cassa: detCassa,
+                        netto: detNetto,
+                        regime: r
+                    });
                 });
             }
 
@@ -175,6 +228,7 @@ export default function Tasse() {
                 nettoTasche: totNetto,
                 speseDeducibili: speseTotaliDeducibili
             });
+            setDettagliCause(causeDettaglio);
 
         } catch (error) {
             console.error("Errore nel calcolo tasse reali", error);
@@ -236,7 +290,16 @@ export default function Tasse() {
 
     return (
         <div className="pb-20">
-            <h1>Cassetto Fiscale {new Date().getFullYear()}</h1>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem" }}>
+                <h1 style={{ marginBottom: 0 }}>Cassetto Fiscale {new Date().getFullYear()}</h1>
+                <button
+                    onClick={() => setShowTutorial(true)}
+                    style={{ background: "none", border: "none", cursor: "pointer", color: "#007AFF", padding: "0.5rem" }}
+                    aria-label="Apri guida"
+                >
+                    <Book size={28} />
+                </button>
+            </div>
 
             {/* Segmented Control per passare da DB a Simulatore */}
             <div className="ios-select-group" style={{ marginBottom: "2rem" }}>
@@ -272,9 +335,18 @@ export default function Tasse() {
                                 <span style={{ fontWeight: "600", color: "var(--foreground)" }}>€{datiAnnuali.incassatoLordo.toFixed(2)}</span>
                             </div>
 
-                            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "1rem", borderBottom: "1px solid var(--border)", paddingBottom: "0.5rem", color: "var(--destructive)" }}>
-                                <span>Fisco (IRPEF/Sostitutiva) da pagare</span>
-                                <span style={{ fontWeight: "bold" }}>- €{datiAnnuali.tasseDaPagare.toFixed(2)}</span>
+                            <div style={{ marginBottom: "1rem", borderBottom: "1px solid var(--border)", paddingBottom: "0.5rem" }}>
+                                <div style={{ color: "var(--destructive)", marginBottom: "0.5rem" }}>Fisco (IRPEF/Sostitutiva) da pagare:</div>
+                                {dettagliCause.map(c => (
+                                    <div key={c.id} style={{ display: "flex", justifyContent: "space-between", fontSize: "0.9rem", marginLeft: "0.5rem", marginBottom: "0.25rem", opacity: 0.9 }}>
+                                        <span>{c.nome}</span>
+                                        <span>- €{c.tasse.toFixed(2)}</span>
+                                    </div>
+                                ))}
+                                <div style={{ display: "flex", justifyContent: "space-between", marginTop: "0.5rem", fontWeight: "bold", color: "var(--destructive)" }}>
+                                    <span>Totale Tasse</span>
+                                    <span>- €{datiAnnuali.tasseDaPagare.toFixed(2)}</span>
+                                </div>
                             </div>
 
                             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "1rem", borderBottom: "1px solid var(--border)", paddingBottom: "0.5rem", color: "var(--destructive)" }}>
@@ -287,10 +359,48 @@ export default function Tasse() {
                                 <span style={{ fontWeight: "600" }}>- €{datiAnnuali.speseDeducibili.toFixed(2)}</span>
                             </div>
 
-                            <div style={{ display: "flex", justifyContent: "space-between", marginTop: "1.5rem", fontSize: "1.3rem" }}>
-                                <strong>Netto in Tasca (Stimato)</strong>
-                                <strong style={{ color: "var(--success)" }}>€{datiAnnuali.nettoTasche.toFixed(2)}</strong>
+                            <div style={{ display: "flex", justifyContent: "space-between", paddingTop: "0.5rem", fontSize: "1.2rem", fontWeight: "bold", color: "var(--success)" }}>
+                                <span>Netto in Tasca Stimato</span>
+                                <span>€{datiAnnuali.nettoTasche.toFixed(2)}</span>
                             </div>
+                        </div>
+                    )}
+
+                    {/* Spaccato Causale */}
+                    {dettagliCause.length > 0 && mod === "auto" && datiAnnuali.incassatoLordo > 0 && (
+                        <div style={{ marginTop: "2rem", animation: "slideUp 0.4s ease-out" }}>
+                            <h2 style={{ marginBottom: "1rem" }}>Spaccato Singole Entrate</h2>
+                            {dettagliCause.map(c => (
+                                <div key={c.id} className="ios-card" style={{ marginBottom: "1rem", padding: "1rem" }}>
+                                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
+                                        <h3 style={{ margin: 0, fontSize: "1.1rem" }}>{c.nome}</h3>
+                                        <span style={{ fontSize: "0.8rem", opacity: 0.6 }}>
+                                            {new Date(c.data).toLocaleDateString()}
+                                        </span>
+                                    </div>
+                                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.9rem", marginBottom: "4px" }}>
+                                        <span>Ritornato in Fattura (Lordo):</span>
+                                        <span style={{ fontWeight: "bold" }}>€{c.lordo.toFixed(2)}</span>
+                                    </div>
+                                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.9rem", marginBottom: "4px", color: "var(--destructive)" }}>
+                                        <span>Fisco (IRPEF/IVA/Sost):</span>
+                                        <span>- €{c.tasse.toFixed(2)}</span>
+                                    </div>
+                                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.9rem", marginBottom: "4px", color: "var(--destructive)" }}>
+                                        <span>Cassa (CPA+Sogg):</span>
+                                        <span>- €{c.cassa.toFixed(2)}</span>
+                                    </div>
+                                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: "1rem", marginTop: "8px", paddingTop: "8px", borderTop: "1px solid var(--border)", color: "var(--success)", fontWeight: "bold" }}>
+                                        <span>Netto Effettivo:</span>
+                                        <span>€{c.netto.toFixed(2)}</span>
+                                    </div>
+                                    {c.regime === "ordinario" && (
+                                        <div style={{ fontSize: "0.75rem", opacity: 0.6, marginTop: "6px", textAlign: "right" }}>
+                                            *Stima pre-deduzioni annuali
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
                         </div>
                     )}
                 </>
@@ -407,6 +517,57 @@ export default function Tasse() {
                         </div>
                     )}
                 </>
+            )}
+
+            {/* Modale Tutorial & Legenda */}
+            {showTutorial && (
+                <div style={{
+                    position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
+                    backgroundColor: "rgba(0,0,0,0.5)", zIndex: 9999,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    padding: "1rem"
+                }}>
+                    <div className="ios-card" style={{
+                        maxWidth: "500px", width: "100%", maxHeight: "80vh", overflowY: "auto",
+                        position: "relative", animation: "slideUp 0.3s ease-out"
+                    }}>
+                        <button
+                            onClick={() => setShowTutorial(false)}
+                            style={{ position: "absolute", top: "1rem", right: "1rem", background: "none", border: "none", fontSize: "1.5rem", cursor: "pointer", color: "var(--foreground)" }}
+                        >
+                            ✕
+                        </button>
+                        <h2 style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "1rem", color: "#007AFF" }}>
+                            <Book size={24} /> Guida all'App
+                        </h2>
+
+                        <div style={{ marginBottom: "1.5rem" }}>
+                            <h3 style={{ fontSize: "1.1rem", marginBottom: "0.5rem" }}>Come utilizzare l'App</h3>
+                            <ul style={{ paddingLeft: "1.2rem", margin: 0, opacity: 0.9 }}>
+                                <li><strong>Dashboard:</strong> Aggiungi qui le tue cause (entrate) e le tue spese (uscite). Scannerizza gli scontrini per un inserimento rapido.</li>
+                                <li><strong>Cassetto Fiscale:</strong> Visualizza in automatico le tasse, la cassa forense e il netto in tasca, calcolati in base alle entrate e uscite registrate.</li>
+                                <li><strong>Simulatore:</strong> Usa la sezione "Simulatore" per calcolare tasse e netto di un ipotetico incasso futuro, senza salvarlo nel database.</li>
+                                <li><strong>Impostazioni:</strong> Configura il tuo regime fiscale e la cassa forense standard per i calcoli automatici.</li>
+                            </ul>
+                        </div>
+
+                        <div style={{ background: "rgba(0,122,255,0.05)", padding: "1rem", borderRadius: "12px" }}>
+                            <h3 style={{ fontSize: "1.1rem", marginBottom: "0.5rem" }}>Regime Ordinario: Spese Deducibili</h3>
+                            <p style={{ fontSize: "0.9rem", opacity: 0.9, marginBottom: "0.5rem" }}>
+                                Se sei nel regime Ordinario, l'app abbatte automaticamente il tuo imponibile in base alla categoria della spesa:
+                            </p>
+                            <ul style={{ paddingLeft: "1.2rem", margin: 0, fontSize: "0.9rem" }}>
+                                <li style={{ marginBottom: "4px" }}><strong>100% (Interamente deducibili):</strong> Cancelleria, Software, Spese per il Lavoro, Formazione. (Es: un PC o un corso).</li>
+                                <li style={{ marginBottom: "4px" }}><strong>75% (Parzialmente deducibili):</strong> Ristoranti, Alberghi, Somministrazione alimenti e bevande per riunioni/trasferte.</li>
+                                <li style={{ marginBottom: "4px" }}><strong>20% (Uso promiscuo):</strong> Auto, Trasporti, Carburante, Viaggi.</li>
+                                <li><strong>0% (Non deducibili):</strong> Alimenti generici, spese personali, imprevisti.</li>
+                            </ul>
+                            <p style={{ fontSize: "0.85rem", opacity: 0.7, marginTop: "0.5rem", fontStyle: "italic" }}>
+                                *Per il regime Forfettario le spese reali non si scaricano (esiste una deduzione forfettaria integrata del 15% o altra percentuale).
+                            </p>
+                        </div>
+                    </div>
+                </div>
             )}
             <style dangerouslySetInnerHTML={{
                 __html: `

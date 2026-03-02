@@ -64,6 +64,7 @@ export default function Dashboard() {
   const [transazioniMese, setTransazioniMese] = useState<any[]>([]);
 
   const [sogliaFaccina, setSogliaFaccina] = useState(40);
+  const [showGuida, setShowGuida] = useState(false);
 
   // Rimosso useEffect anticipato
 
@@ -287,8 +288,17 @@ export default function Dashboard() {
     <div className="pb-20">
       <div className="flex-row-between" style={{ marginBottom: "1.5rem" }}>
         <div>
-          <h2>Ciao, {user?.firstName || 'Avvocato'}! {emoticonInfo}</h2>
-          <p style={{ color: "var(--foreground)", opacity: 0.6, fontSize: "0.9rem", marginTop: "-10px" }}>Mese Corrente</p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <h2 style={{ margin: 0 }}>Ciao, {user?.firstName || 'Avvocato'}! {emoticonInfo}</h2>
+            <button
+              onClick={() => setShowGuida(true)}
+              style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', padding: 0 }}
+              title="Guida Fiscale e Tutorial"
+            >
+              📘
+            </button>
+          </div>
+          <p style={{ color: "var(--foreground)", opacity: 0.6, fontSize: "0.9rem", marginTop: "-4px" }}>Mese Corrente</p>
         </div>
 
         {/* Torta Annuale (Piccola in alto a dx - La manteniamo fissa come design target per ora) */}
@@ -401,6 +411,64 @@ export default function Dashboard() {
                 onClick={() => setSelectedCategory(null)}
               >
                 Chiudi
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modale Guida e Tutorial App */}
+      {showGuida && (
+        <div className="bottom-sheet-overlay" onClick={() => setShowGuida(false)} style={{ zIndex: 1000 }}>
+          <div className="bottom-sheet" onClick={(e) => e.stopPropagation()} style={{ height: '85vh', maxHeight: '85vh', display: 'flex', flexDirection: 'column' }}>
+            <div className="bottom-sheet-handle"></div>
+            <button className="bottom-sheet-close" onClick={() => setShowGuida(false)}>&times;</button>
+
+            <div style={{ padding: "0 1rem 2rem 1rem", overflowY: "auto", flex: 1 }}>
+              <h2 style={{ marginBottom: "1.5rem", textAlign: "center", fontSize: "1.5rem" }}>📘 Guida & Tutorial</h2>
+
+              <div className="ios-card" style={{ marginBottom: "1rem" }}>
+                <h3 style={{ color: "var(--primary)", marginBottom: "0.5rem" }}>Come funziona l&apos;App?</h3>
+                <p style={{ fontSize: "0.9rem", lineHeight: "1.5", opacity: 0.9, marginBottom: "0.5rem" }}>
+                  <strong>1. Scansiona le Spese:</strong> Vai su &quot;Scanner&quot; per fotografare scontrini o fatture di costo. L&apos;AI compilerà automaticamente importo e categoria stimate.
+                </p>
+                <p style={{ fontSize: "0.9rem", lineHeight: "1.5", opacity: 0.9, marginBottom: "0.5rem" }}>
+                  <strong>2. Registra le Entrate:</strong> Vai su &quot;Cause/Incassi&quot;, clicca il pulsante &quot;+&quot; e registra l&apos;importo concordato per una pratica.
+                </p>
+                <p style={{ fontSize: "0.9rem", lineHeight: "1.5", opacity: 0.9, marginBottom: "0.5rem" }}>
+                  <strong>3. Tieni d&apos;occhio la Faccina:</strong> L&apos;emoticon in Dashboard diventa triste se le tue uscite superano una certa % delle entrate (modificabile in Impostazioni).
+                </p>
+                <p style={{ fontSize: "0.9rem", lineHeight: "1.5", opacity: 0.9 }}>
+                  <strong>4. Cassetto Fiscale:</strong> Vai su &quot;Tasse&quot; per vedere cosa devi accantonare esattamente per IRPEF, IVA e Cassa Forense. Il calcolatore deduce le uscite previste per il tuo inquadramento.
+                </p>
+              </div>
+
+              <div className="ios-card" style={{ marginBottom: "2rem" }}>
+                <h3 style={{ color: "var(--primary)", marginBottom: "0.5rem" }}>Spese e Deducibilità</h3>
+                <p style={{ fontSize: "0.85rem", opacity: 0.8, marginBottom: "1rem", background: "rgba(255,59,48,0.1)", padding: "10px", borderRadius: "8px", color: "var(--destructive)" }}>
+                  <strong>Nota Forfettario:</strong> In questo regime i costi abbattibili sono forfettizzati automaticamente al 15% indipendentemente da quello che si spende! Le spese su questa app hanno scopo solo statistico e personale.
+                </p>
+                <p style={{ fontSize: "0.85rem", opacity: 0.9, marginBottom: "1rem", fontWeight: "600" }}>
+                  Se sei in Regime Ordinario, ecco cosa (ampiamente) puoi scaricare dalle tasse:
+                </p>
+                <ul style={{ fontSize: "0.85rem", paddingLeft: "1.2rem", lineHeight: "1.6", opacity: 0.9 }}>
+                  <li style={{ marginBottom: "6px" }}><strong>100%:</strong> Cancelleria, bolli, software, portali notarili/PCT, formazione, Albo, hotel e ristoranti se riaddebitati analiticamente in fattura al cliente.</li>
+                  <li style={{ marginBottom: "6px" }}><strong>50%:</strong> Acquisto/noleggio veicolo (escluso IVA limitata, max stima), carburante, riparazioni veicolo. Spese telefoniche e internet pro-rata uso duale.</li>
+                  <li style={{ marginBottom: "6px" }}><strong>75%:</strong> Hotel e Ristoranti consumati autonomamente per motivi di lavoro (entro un tetto legale % sui compensi).</li>
+                  <li style={{ marginBottom: "6px" }}><strong>50%:</strong> Bollette e manutenzioni per l&apos;immobile uso studio-abitazione.</li>
+                  <li><strong>80%:</strong> Spese di rappresentanza.</li>
+                </ul>
+                <p style={{ fontSize: "0.75rem", color: "var(--destructive)", marginTop: "1rem", opacity: 0.8 }}>
+                  <em>Disclaimer: Le percentuali sono stimate algoritmicamente dal gestionale a titolo informativo. Il tuo commercialista dovrà valutare caso per caso la reale inerenza fiscale o variazioni normative del TUIR.</em>
+                </p>
+              </div>
+
+              <button
+                className="ios-btn-large"
+                onClick={() => setShowGuida(false)}
+                style={{ width: "100%", marginTop: "1rem" }}
+              >
+                Ho Capito
               </button>
             </div>
           </div>
