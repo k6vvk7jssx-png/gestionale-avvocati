@@ -113,9 +113,12 @@ export default function Home() {
 
         {/* Header Destro: Contact Us & Avatar */}
         <div className="absolute top-8 right-8 flex items-center gap-4 z-20">
-          <button className="px-5 py-2 text-sm rounded-full border border-white/20 text-slate-300 hover:bg-white/5 transition-colors font-medium">
+          <a
+            href="mailto:la.tua.email@esempio.it"
+            className="px-5 py-2 text-sm rounded-full border border-white/20 text-slate-300 hover:bg-white/5 transition-colors font-medium"
+          >
             Contact Us
-          </button>
+          </a>
           <div className="w-10 h-10 rounded-full bg-slate-600 flex items-center justify-center text-slate-300">
             <User className="w-6 h-6" />
           </div>
