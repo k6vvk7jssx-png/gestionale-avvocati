@@ -120,7 +120,7 @@ export default function Tasse() {
             let totIvaOrdinario = 0;
             let totRitenutaOrdinario = 0;
 
-            let causeDettaglio: CausaDettaglio[] = [];
+            const causeDettaglio: CausaDettaglio[] = [];
 
             if (cause) {
                 cause.forEach(c => {
@@ -538,15 +538,15 @@ export default function Tasse() {
                             ✕
                         </button>
                         <h2 style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "1rem", color: "#007AFF" }}>
-                            <Book size={24} /> Guida all'App
+                            <Book size={24} /> Guida all&apos;App
                         </h2>
 
                         <div style={{ marginBottom: "1.5rem" }}>
-                            <h3 style={{ fontSize: "1.1rem", marginBottom: "0.5rem" }}>Come utilizzare l'App</h3>
+                            <h3 style={{ fontSize: "1.1rem", marginBottom: "0.5rem" }}>Come utilizzare l&apos;App</h3>
                             <ul style={{ paddingLeft: "1.2rem", margin: 0, opacity: 0.9 }}>
                                 <li><strong>Dashboard:</strong> Aggiungi qui le tue cause (entrate) e le tue spese (uscite). Scannerizza gli scontrini per un inserimento rapido.</li>
                                 <li><strong>Cassetto Fiscale:</strong> Visualizza in automatico le tasse, la cassa forense e il netto in tasca, calcolati in base alle entrate e uscite registrate.</li>
-                                <li><strong>Simulatore:</strong> Usa la sezione "Simulatore" per calcolare tasse e netto di un ipotetico incasso futuro, senza salvarlo nel database.</li>
+                                <li><strong>Simulatore:</strong> Usa la sezione &quot;Simulatore&quot; per calcolare tasse e netto di un ipotetico incasso futuro, senza salvarlo nel database.</li>
                                 <li><strong>Impostazioni:</strong> Configura il tuo regime fiscale e la cassa forense standard per i calcoli automatici.</li>
                             </ul>
                         </div>
@@ -554,7 +554,7 @@ export default function Tasse() {
                         <div style={{ background: "rgba(0,122,255,0.05)", padding: "1rem", borderRadius: "12px" }}>
                             <h3 style={{ fontSize: "1.1rem", marginBottom: "0.5rem" }}>Regime Ordinario: Spese Deducibili</h3>
                             <p style={{ fontSize: "0.9rem", opacity: 0.9, marginBottom: "0.5rem" }}>
-                                Se sei nel regime Ordinario, l'app abbatte automaticamente il tuo imponibile in base alla categoria della spesa:
+                                Se sei nel regime Ordinario, l&apos;app abbatte automaticamente il tuo imponibile in base alla categoria della spesa:
                             </p>
                             <ul style={{ paddingLeft: "1.2rem", margin: 0, fontSize: "0.9rem" }}>
                                 <li style={{ marginBottom: "4px" }}><strong>100% (Interamente deducibili):</strong> Cancelleria, Software, Spese per il Lavoro, Formazione. (Es: un PC o un corso).</li>

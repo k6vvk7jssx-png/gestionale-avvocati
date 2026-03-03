@@ -487,38 +487,35 @@ export default function Dashboard() {
               <h2 style={{ marginBottom: "1.5rem", textAlign: "center", fontSize: "1.5rem" }}>📘 Guida & Tutorial</h2>
 
               <div className="ios-card" style={{ marginBottom: "1rem" }}>
-                <h3 style={{ color: "var(--primary)", marginBottom: "0.5rem" }}>Come funziona l&apos;App?</h3>
+                <h3 style={{ color: "var(--primary)", marginBottom: "0.5rem" }}>Il Nuovo Motore Fiscale</h3>
                 <p style={{ fontSize: "0.9rem", lineHeight: "1.5", opacity: 0.9, marginBottom: "0.5rem" }}>
-                  <strong>1. Scansiona le Spese:</strong> Vai su &quot;Scanner&quot; per fotografare scontrini o fatture di costo. L&apos;AI compilerà automaticamente importo e categoria stimate.
+                  <strong>1. Badge in Tempo Reale:</strong> Inserendo una spesa manualmente o scansionando uno scontrino, vedrai comparire un avviso in tempo reale con l&apos;esatto importo deducibile (es: amount * deductibilityRate) calcolato matematicamente al volo.
                 </p>
                 <p style={{ fontSize: "0.9rem", lineHeight: "1.5", opacity: 0.9, marginBottom: "0.5rem" }}>
-                  <strong>2. Registra le Entrate:</strong> Vai su &quot;Cause/Incassi&quot;, clicca il pulsante &quot;+&quot; e registra l&apos;importo concordato per una pratica.
+                  <strong>2. Tasse Abbattute in Diretta (Ordinario):</strong> La Dashboard &quot;sottrae&quot; automaticamente il totale delle spese legalmente deducibili dal tuo imponibile. Noterai il tuo <em>Fondo Tasse Virt.</em> abbassarsi in tempo reale all&apos;inserimento di ogni scontrino valido!
                 </p>
                 <p style={{ fontSize: "0.9rem", lineHeight: "1.5", opacity: 0.9, marginBottom: "0.5rem" }}>
-                  <strong>3. Tieni d&apos;occhio la Faccina:</strong> L&apos;emoticon in Dashboard diventa triste se le tue uscite superano una certa % delle entrate (modificabile in Impostazioni).
+                  <strong>3. Tieni d&apos;occhio la Faccina:</strong> L&apos;emoticon in alto valuta la tua spesa globale per frenare il consumismo. Modificabile nelle impostazioni.
                 </p>
                 <p style={{ fontSize: "0.9rem", lineHeight: "1.5", opacity: 0.9 }}>
-                  <strong>4. Cassetto Fiscale:</strong> Vai su &quot;Tasse&quot; per vedere cosa devi accantonare esattamente per IRPEF, IVA e Cassa Forense. Il calcolatore deduce le uscite previste per il tuo inquadramento.
+                  <strong>4. Gamification Ristoranti:</strong> La legge italiana limita le spese per Ristoranti e Hotel al 2% dei compensi annui (YTD). Se ti avvicini o sfori questo tetto, la UI rivelerà un banner di allerta arancione/rosso sotto il grafico mensile per dirti di non dedurre più!
                 </p>
               </div>
 
               <div className="ios-card" style={{ marginBottom: "2rem" }}>
-                <h3 style={{ color: "var(--primary)", marginBottom: "0.5rem" }}>Spese e Deducibilità</h3>
+                <h3 style={{ color: "var(--primary)", marginBottom: "0.5rem" }}>Tassi di Deducibilità Centralizzati</h3>
                 <p style={{ fontSize: "0.85rem", opacity: 0.8, marginBottom: "1rem", background: "rgba(255,59,48,0.1)", padding: "10px", borderRadius: "8px", color: "var(--destructive)" }}>
-                  <strong>Nota Forfettario:</strong> In questo regime i costi abbattibili sono forfettizzati automaticamente al 15% indipendentemente da quello che si spende! Le spese su questa app hanno scopo solo statistico e personale.
-                </p>
-                <p style={{ fontSize: "0.85rem", opacity: 0.9, marginBottom: "1rem", fontWeight: "600" }}>
-                  Se sei in Regime Ordinario, ecco cosa (ampiamente) puoi scaricare dalle tasse:
+                  <strong>Nota per i Forfettari:</strong> I bonus deducibilità spiegati sopra valgono SOLO per il <strong>Regime Ordinario</strong> (impostabile dal tuo Profilo). I forfettari hanno costi scaricati forfettizzati automaticamente al 15% per legge, indipendenti dalle spese caricate in app.
                 </p>
                 <ul style={{ fontSize: "0.85rem", paddingLeft: "1.2rem", lineHeight: "1.6", opacity: 0.9 }}>
-                  <li style={{ marginBottom: "6px" }}><strong>100%:</strong> Cancelleria, bolli, software, portali notarili/PCT, formazione, Albo, hotel e ristoranti se riaddebitati analiticamente in fattura al cliente.</li>
-                  <li style={{ marginBottom: "6px" }}><strong>50%:</strong> Acquisto/noleggio veicolo (escluso IVA limitata, max stima), carburante, riparazioni veicolo. Spese telefoniche e internet pro-rata uso duale.</li>
-                  <li style={{ marginBottom: "6px" }}><strong>75%:</strong> Hotel e Ristoranti consumati autonomamente per motivi di lavoro (entro un tetto legale % sui compensi).</li>
-                  <li style={{ marginBottom: "6px" }}><strong>50%:</strong> Bollette e manutenzioni per l&apos;immobile uso studio-abitazione.</li>
-                  <li><strong>80%:</strong> Spese di rappresentanza.</li>
+                  <li style={{ marginBottom: "6px" }}><strong>100%:</strong> Cancelleria, software, formazione, spese di lavoro/ufficio esclusivo.</li>
+                  <li style={{ marginBottom: "6px" }}><strong>80%:</strong> Telefonia, internet, utenze promiscue.</li>
+                  <li style={{ marginBottom: "6px" }}><strong>75%:</strong> Ristoranti e Trasferte. Il motore incrocia questo rate con il tetto di &quot;plafond&quot; massimo annuo (il tuo 2% dei compensi totali incassati). Oltre questa soglia, non saranno più validi!</li>
+                  <li style={{ marginBottom: "6px" }}><strong>50%:</strong> Affitto e Utenze per casa-studio (Promiscuo).</li>
+                  <li><strong>20%:</strong> Auto, viaggi vari, mezzi di trasporto, carburante.</li>
                 </ul>
                 <p style={{ fontSize: "0.75rem", color: "var(--destructive)", marginTop: "1rem", opacity: 0.8 }}>
-                  <em>Disclaimer: Le percentuali sono stimate algoritmicamente dal gestionale a titolo informativo. Il tuo commercialista dovrà valutare caso per caso la reale inerenza fiscale o variazioni normative del TUIR.</em>
+                  <em>Disclaimer: Le percentuali sono stimate algoritmicamente dal gestionale a titolo informativo basandosi sull&apos;attuale normativa TUIR (Ordinario Avvocati). Il commercialista valuterà caso per caso il reale principio di inerenza e competenza.</em>
                 </p>
               </div>
 
