@@ -1,5 +1,6 @@
 import { ClerkProvider, SignedIn, SignedOut, UserButton } from "@clerk/nextjs";
 import Link from 'next/link';
+import BottomNav from '@/components/BottomNav';
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
@@ -95,28 +96,7 @@ export default function RootLayout({
               </main>
 
               {/* Bottom Navigation Bar */}
-              <nav className="bottom-nav">
-                <Link href="/dashboard" className="nav-item">
-                  <span className="nav-icon">📊</span>
-                  <span className="nav-text">Dashboard</span>
-                </Link>
-                <Link href="/scanner" className="nav-item">
-                  <span className="nav-icon" style={{ background: "var(--primary)", color: "white", borderRadius: "50%", width: "45px", height: "45px", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "-15px", border: "4px solid var(--background)", transform: "translateY(-10px)" }}>📸</span>
-                  <span className="nav-text" style={{ marginTop: "15px" }}>Scanner</span>
-                </Link>
-                <Link href="/tasse" className="nav-item">
-                  <span className="nav-icon">🧮</span>
-                  <span className="nav-text">Tasse</span>
-                </Link>
-                <Link href="/cause" className="nav-item">
-                  <span className="nav-icon">⚖️</span>
-                  <span className="nav-text">Cause</span>
-                </Link>
-                <Link href="/impostazioni" className="nav-item">
-                  <span className="nav-icon">⚙️</span>
-                  <span className="nav-text">Impo.</span>
-                </Link>
-              </nav>
+              <BottomNav />
             </div>
           </SignedIn>
         </body>
