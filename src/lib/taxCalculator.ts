@@ -47,13 +47,18 @@ export function calculateInvoice(
     }
 
     if (regime === 'ordinario') {
+        const imponibileLordo = compensoBase + speseGenerali15;
+        const cpa4 = imponibileLordo * 0.04;
+
         if (applicaIva) {
-            iva22 = totaleFatturaLordo * 0.22;
-            totaleFatturaLordo += iva22;
+            iva22 = (imponibileLordo + cpa4) * 0.22;
         }
+
+        totaleFatturaLordo = imponibileLordo + cpa4 + iva22;
+
         if (applicaRitenuta) {
-            // Regola 2026 Utente: La ritenuta d'acconto 20% si calcola SOLO sul compenso base puro.
-            ritenutaAcconto20 = compensoBase * 0.20;
+            // Regola 2026 Utente: La ritenuta d'acconto 20% si calcola su Imponibile Lordo (Compenso + Spese Generali 15%)
+            ritenutaAcconto20 = imponibileLordo * 0.20;
         }
 
         // Netto in tasca = Lordo Totale (inclusa iva) - Ritenuta
@@ -69,7 +74,7 @@ export function calculateInvoice(
     return {
         compensoBase,
         speseGenerali15,
-        cpa4,
+        cpa4: regime === 'ordinario' ? ((compensoBase + speseGenerali15) * 0.04) : cpa4,
         iva22,
         ritenutaAcconto20,
         nettoCalcolato,

@@ -140,8 +140,9 @@ export default function Tasse() {
                         const cpa = c.cpa_4 ? Number(c.cpa_4) : (compensoBase + speseGenerali) * 0.04;
                         const cassaForenseTotale = cassaSoggettiva + cpa;
 
+                        const baseImponibileNetta = redditoImponibileLordo - cassaSoggettiva;
                         const aliquota = r === "forfettario_5" ? 0.05 : 0.15;
-                        const tasse = redditoImponibileLordo * aliquota;
+                        const tasse = baseImponibileNetta * aliquota;
 
                         // Per forfettario volume d'affari è Compenso base + 15% spese + CPA in fattura (esente IVA)
                         const volumeAffari = c.compenso_lordo ? Number(c.compenso_lordo) : (compensoBase + speseGenerali + cpa);
@@ -157,29 +158,31 @@ export default function Tasse() {
 
                     } else if (r === "ordinario") {
                         const speseGenerali = compensoBase * 0.15;
-                        imponibileOrdinarioAnnuo += (compensoBase + speseGenerali);
+                        const imponibileLordoItem = compensoBase + speseGenerali;
+                        imponibileOrdinarioAnnuo += imponibileLordoItem;
 
-                        const cpa = c.cpa_4 ? Number(c.cpa_4) : (compensoBase + speseGenerali) * 0.04;
-                        const iva = c.iva_22 ? Number(c.iva_22) : (compensoBase + speseGenerali + cpa) * 0.22;
+                        const cpa = c.cpa_4 ? Number(c.cpa_4) : imponibileLordoItem * 0.04;
+                        const iva = c.iva_22 ? Number(c.iva_22) : (imponibileLordoItem + cpa) * 0.22;
 
                         totCpaOrdinario += cpa;
                         totIvaOrdinario += iva;
-                        const ritenutaItem = c.ritenuta_20 ? Number(c.ritenuta_20) : 0;
+
+                        // NOTA: La Ritenuta di acconto nel regime ordinario si calcola anche sulle spese generali
+                        const ritenutaItem = c.ritenuta_20 ? Number(c.ritenuta_20) : imponibileLordoItem * 0.20;
                         totRitenutaOrdinario += ritenutaItem;
 
-                        const volumeAffari = c.compenso_lordo ? Number(c.compenso_lordo) : (compensoBase + speseGenerali + cpa + iva);
+                        const volumeAffari = c.compenso_lordo ? Number(c.compenso_lordo) : (imponibileLordoItem + cpa + iva);
                         totLordo += volumeAffari;
 
                         // Calcolo proporzionale singola fattura per lo spaccato visivo
-                        const imponibileCassaItem = compensoBase + speseGenerali;
-                        const cassaSoggettivaItem = imponibileCassaItem * 0.17;
+                        const cassaSoggettivaItem = imponibileLordoItem * 0.17;
                         const cassaForenseItem = cassaSoggettivaItem + cpa;
 
-                        const imponibileIrpefItem = imponibileCassaItem - cassaSoggettivaItem;
-                        const irpefItem = imponibileIrpefItem * (currentScaglione / 100.0);
+                        const imponibileIrpefItem = imponibileLordoItem - cassaSoggettivaItem;
+                        const irpefLordaItem = imponibileIrpefItem * (currentScaglione / 100.0);
                         const addizionaliItem = imponibileIrpefItem * 0.03;
 
-                        const tasseItem = iva + irpefItem + addizionaliItem - ritenutaItem;
+                        const tasseItem = Math.max(0, irpefLordaItem - ritenutaItem) + addizionaliItem + iva;
 
                         detLordo = volumeAffari;
                         detTasse = tasseItem;
@@ -210,10 +213,11 @@ export default function Tasse() {
 
                 const imponibileIrpef = imponibileCassa - cassaSoggettiva;
                 // Calcolo IRPEF basato sullo scaglione previsionale utente
-                const irpef = imponibileIrpef * (currentScaglione / 100.0);
+                const irpefLorda = imponibileIrpef * (currentScaglione / 100.0);
                 const addizionali = imponibileIrpef * 0.03;
 
-                const fiscoTotale = totIvaOrdinario + irpef + addizionali - totRitenutaOrdinario;
+                const irpefaSaldo = Math.max(0, irpefLorda - totRitenutaOrdinario);
+                const fiscoTotale = totIvaOrdinario + irpefaSaldo + addizionali;
 
                 totTasse += fiscoTotale;
                 totCassa += cassaForenseTotale;
@@ -252,8 +256,9 @@ export default function Tasse() {
             const cpa = (compensoBase + speseGenerali) * 0.04;
             cassa = cassaSoggettiva + cpa;
 
+            const baseImponibileNetta = redditoImponibileLordo - cassaSoggettiva;
             const aliquotaTasse = regime === "forfettario_5" ? 0.05 : 0.15;
-            tasse = redditoImponibileLordo * aliquotaTasse;
+            tasse = baseImponibileNetta * aliquotaTasse;
 
             volumeAffariLordo = compensoBase + speseGenerali + cpa;
             imponibile = redditoImponibileLordo;
@@ -261,23 +266,27 @@ export default function Tasse() {
         } else if (regime === "ordinario") {
             const compensoBase = importoLordo;
             const speseGenerali = compensoBase * 0.15;
+            const imponibileLordo = compensoBase + speseGenerali;
             const speseDeducibili = 0; // Simulazione manuale non ha spese caricate
 
-            const imponibileCassa = (compensoBase + speseGenerali) - speseDeducibili;
+            const imponibileCassa = imponibileLordo - speseDeducibili;
             const cassaSoggettiva = imponibileCassa * 0.17;
-            const cpa = (compensoBase + speseGenerali) * 0.04;
+            const cpa = imponibileLordo * 0.04;
             cassa = cassaSoggettiva + cpa;
 
-            const ivaDaVersare = (compensoBase + speseGenerali + cpa) * 0.22;
+            const ivaDaVersare = (imponibileLordo + cpa) * 0.22;
+            const ritenutaScontata = imponibileLordo * 0.20;
 
             const imponibileIrpef = imponibileCassa - cassaSoggettiva;
-            const irpef = imponibileIrpef * (scaglioneManuale / 100.0); // Simulazione su scaglione scelto
-            const addizionali = imponibileIrpef * 0.03;
-            tasse = ivaDaVersare + irpef + addizionali;
+            const irpefLorda = imponibileIrpef * (scaglioneManuale / 100.0); // Simulazione su scaglione scelto
+            const irpefaSaldo = Math.max(0, irpefLorda - ritenutaScontata);
 
-            volumeAffariLordo = compensoBase + speseGenerali + cpa + ivaDaVersare;
+            const addizionali = imponibileIrpef * 0.03;
+            tasse = ivaDaVersare + irpefaSaldo + addizionali;
+
+            volumeAffariLordo = imponibileLordo + cpa + ivaDaVersare;
             imponibile = imponibileIrpef;
-            netto = volumeAffariLordo - tasse - cassa;
+            netto = volumeAffariLordo - tasse - cassa - ritenutaScontata; // in fattura manuale considero tasca reale dopo ritenuta subita
         } else {
             // Free
             imponibile = 0; tasse = 0; cassa = 0; netto = importoLordo; volumeAffariLordo = importoLordo;
@@ -463,9 +472,9 @@ export default function Tasse() {
                                         onClick={() => setScaglioneManuale(23)}
                                     >23%</button>
                                     <button
-                                        className={`ios-segment ${scaglioneManuale === 33 ? 'active' : ''}`}
-                                        onClick={() => setScaglioneManuale(33)}
-                                    >33%</button>
+                                        className={`ios-segment ${scaglioneManuale === 35 ? 'active' : ''}`}
+                                        onClick={() => setScaglioneManuale(35)}
+                                    >35%</button>
                                     <button
                                         className={`ios-segment ${scaglioneManuale === 43 ? 'active' : ''}`}
                                         onClick={() => setScaglioneManuale(43)}

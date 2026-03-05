@@ -161,9 +161,13 @@ export default function Dashboard() {
             const redditoImponibileLordo = (compensoPuro + speseGenerali) * 0.78;
 
             const secchio1_cpa = c.cpa_4 ? Number(c.cpa_4) : (compensoPuro + speseGenerali) * 0.04;
-            const secchio2_cassa = redditoImponibileLordo * 0.17;
+            const secchio2_cassa = redditoImponibileLordo * 0.17; // Contributo Soggettivo
+
+            // BUGFIX: Deducibilità Contributo Soggettivo prima dell'imposta sostitutiva
+            const baseImponibileNetta = redditoImponibileLordo - secchio2_cassa;
+
             const aliquotaFisco = tipoFiscale === "forfettario_5" ? 0.05 : 0.15;
-            const secchio3_imposta = redditoImponibileLordo * aliquotaFisco;
+            const secchio3_imposta = baseImponibileNetta * aliquotaFisco;
 
             totTasseAccantonate += (secchio1_cpa + secchio2_cassa + secchio3_imposta);
 
@@ -171,22 +175,25 @@ export default function Dashboard() {
             // Modello ORDINARIO
             const compensoPuro = Number(c.compenso_base || c.compenso_lordo || 0);
             const speseGenerali = compensoPuro * 0.15;
+            const imponibileLordo = compensoPuro + speseGenerali;
 
             // EPICA 3: Sottraggo le uscite deducibili dall'Imponibile Cassa per calcolare l' Utile Lordo reale
-            const utileLordo = Math.max(0, (compensoPuro + speseGenerali) - totUsciteDeducibili);
+            const utileLordo = Math.max(0, imponibileLordo - totUsciteDeducibili);
 
-            const secchio1_cpa = c.cpa_4 ? Number(c.cpa_4) : (compensoPuro + speseGenerali) * 0.04;
-            const secchio2_iva = c.iva_22 ? Number(c.iva_22) : 0;
-            const secchio3_cassa = utileLordo * 0.17;
+            const secchio1_cpa = c.cpa_4 ? Number(c.cpa_4) : imponibileLordo * 0.04;
+            const secchio2_iva = c.iva_22 ? Number(c.iva_22) : (imponibileLordo + secchio1_cpa) * 0.22;
+            const secchio3_cassa = utileLordo * 0.17; // Soggettivo
 
             const percentualeIrpef = currentScaglione / 100.0;
             const baseIrpef = Math.max(0, utileLordo - secchio3_cassa);
-            const secchio4_irpef = baseIrpef * percentualeIrpef;
+            const secchio4_irpefLorda = baseIrpef * percentualeIrpef;
             const secchio5_addizionali = baseIrpef * 0.03; // ~3%
 
-            const scontoRitenuta = c.ritenuta_20 ? Number(c.ritenuta_20) : 0;
+            // BUGFIX: Ritenuta calcolata sull'imponibile lordo (compenso + spese generali)
+            const scontoRitenuta = c.ritenuta_20 ? Number(c.ritenuta_20) : imponibileLordo * 0.20;
+            const irpefaSaldo = Math.max(0, secchio4_irpefLorda - scontoRitenuta);
 
-            totTasseAccantonate += (secchio1_cpa + secchio2_iva + secchio3_cassa + secchio4_irpef + secchio5_addizionali - scontoRitenuta);
+            totTasseAccantonate += (secchio1_cpa + secchio2_iva + secchio3_cassa + irpefaSaldo + secchio5_addizionali);
 
             totUsciteDeducibili = 0; // Evita di ri-sottrarre le stesse spese per le successive fatture dello stesso mese
 
