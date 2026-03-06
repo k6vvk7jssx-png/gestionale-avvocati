@@ -1,5 +1,6 @@
 import { ClerkProvider, SignedIn, SignedOut, UserButton } from "@clerk/nextjs";
 import Link from 'next/link';
+import MainMenu from './MainMenu';
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
@@ -15,13 +16,13 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Gestionale Avvocati PWA",
+  title: "Gestionale Facile",
   description: "App gestionale per avvocati in regime forfettario e ordinario",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "Gestionale"
+    title: "Gestionale Facile"
   }
 };
 
@@ -84,7 +85,7 @@ export default function RootLayout({
           <SignedIn>
             <div className="app-container">
               <header className="ios-header">
-                <div className="header-title">Gestionale iOS</div>
+                <div className="header-title">Gestionale Facile</div>
                 <div className="auth-container">
                   <UserButton afterSignOutUrl="/" />
                 </div>
@@ -94,29 +95,7 @@ export default function RootLayout({
                 {children}
               </main>
 
-              {/* Bottom Navigation Bar styled explicitly statically */}
-              <nav className="bottom-nav">
-                <Link href="/dashboard" className="nav-item">
-                  <span className="nav-icon">📊</span>
-                  <span className="nav-text">Dashboard</span>
-                </Link>
-                <Link href="/scanner" className="nav-item">
-                  <span className="nav-icon" style={{ background: "var(--primary)", color: "white", borderRadius: "50%", width: "45px", height: "45px", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "-15px", border: "4px solid var(--background)", transform: "translateY(-10px)", transition: "all 0.3s ease" }}>📸</span>
-                  <span className="nav-text" style={{ marginTop: "15px" }}>Scanner</span>
-                </Link>
-                <Link href="/tasse" className="nav-item">
-                  <span className="nav-icon">🧮</span>
-                  <span className="nav-text">Tasse</span>
-                </Link>
-                <Link href="/cause" className="nav-item">
-                  <span className="nav-icon">⚖️</span>
-                  <span className="nav-text">Cause</span>
-                </Link>
-                <Link href="/impostazioni" className="nav-item">
-                  <span className="nav-icon">⚙️</span>
-                  <span className="nav-text">Impo.</span>
-                </Link>
-              </nav>
+              <MainMenu />
             </div>
           </SignedIn>
         </body>
