@@ -344,18 +344,9 @@ export default function Tasse() {
                                 <span style={{ fontWeight: "600", color: "var(--foreground)" }}>€{datiAnnuali.incassatoLordo.toFixed(2)}</span>
                             </div>
 
-                            <div style={{ marginBottom: "1rem", borderBottom: "1px solid var(--border)", paddingBottom: "0.5rem" }}>
-                                <div style={{ color: "var(--destructive)", marginBottom: "0.5rem" }}>Fisco (IRPEF/Sostitutiva) da pagare:</div>
-                                {dettagliCause.map(c => (
-                                    <div key={c.id} style={{ display: "flex", justifyContent: "space-between", fontSize: "0.9rem", marginLeft: "0.5rem", marginBottom: "0.25rem", opacity: 0.9 }}>
-                                        <span>{c.nome}</span>
-                                        <span>- €{c.tasse.toFixed(2)}</span>
-                                    </div>
-                                ))}
-                                <div style={{ display: "flex", justifyContent: "space-between", marginTop: "0.5rem", fontWeight: "bold", color: "var(--destructive)" }}>
-                                    <span>Totale Tasse</span>
-                                    <span>- €{datiAnnuali.tasseDaPagare.toFixed(2)}</span>
-                                </div>
+                            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "1rem", borderBottom: "1px solid var(--border)", paddingBottom: "0.5rem", color: "var(--destructive)" }}>
+                                <span>Fisco (IRPEF/Sostitutiva) Totale</span>
+                                <span style={{ fontWeight: "bold" }}>- €{datiAnnuali.tasseDaPagare.toFixed(2)}</span>
                             </div>
 
                             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "1rem", borderBottom: "1px solid var(--border)", paddingBottom: "0.5rem", color: "var(--destructive)" }}>

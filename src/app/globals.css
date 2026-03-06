@@ -51,7 +51,7 @@ body {
   flex-direction: column;
   height: 100dvh;
   /* usa 100dvh per ignorare la barra degli indirizzi safari */
-  max-width: 600px;
+  width: 100%;
   margin: 0 auto;
   position: relative;
   background: var(--background);
@@ -130,11 +130,9 @@ p {
   position: fixed;
   /* Per attaccarsi al bottom dello schermo visibile */
   bottom: 0;
-  left: 50%;
-  transform: translateX(-50%);
+  left: 0;
   width: 100%;
-  max-width: 600px;
-  /* Stessa larghezza dell'app container */
+  /* Full width */
   height: calc(65px + var(--safe-area-inset-bottom));
   background-color: var(--glass-bg);
   backdrop-filter: blur(20px);
@@ -174,16 +172,21 @@ p {
 
 /* --- Active State Glow (Alone Giallo) --- */
 .active-nav .nav-icon {
-  text-shadow: 0 0 15px rgba(255, 204, 0, 0.9), 0 0 30px rgba(255, 204, 0, 0.6);
-  filter: drop-shadow(0 0 10px rgba(255, 204, 0, 0.8));
-  transform: scale(1.15);
+  text-shadow: 0 0 20px rgba(255, 204, 0, 1), 0 0 40px rgba(255, 204, 0, 0.8) !important;
+  filter: drop-shadow(0 0 12px rgba(255, 204, 0, 1)) !important;
+  transform: scale(1.2) translateY(-2px) !important;
   transition: all 0.3s ease;
+  color: #ffcc00 !important;
 }
 
 .active-nav .nav-text {
   color: #ffcc00 !important;
-  font-weight: 700;
-  text-shadow: 0 0 10px rgba(255, 204, 0, 0.5);
+  font-weight: 800 !important;
+  text-shadow: 0 0 15px rgba(255, 204, 0, 0.8) !important;
+}
+
+.nav-item.active-nav {
+  color: #ffcc00 !important;
 }
 
 .nav-item {
