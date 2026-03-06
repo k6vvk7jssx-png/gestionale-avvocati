@@ -5,6 +5,7 @@ import { ArcElement, Chart as ChartJS, Legend, Tooltip } from "chart.js";
 import { Pie } from "react-chartjs-2";
 import { useUser, useSession } from "@clerk/nextjs";
 import { createClient } from "@supabase/supabase-js";
+import { CheckCircle2, XCircle } from "lucide-react";
 
 ChartJS.register(ArcElement, Tooltip, Legend);
 
@@ -294,7 +295,10 @@ export default function Dashboard() {
   // Percentuale allarme su Uscite rispetto alle Entrate (ma escludendo le tasse fisse dal calcolo di "sto spendendo troppo")
   const entrateVerificabili = entrateMensili > 0 ? entrateMensili : 1;
   const uscitePercentuale = (usciteMensili / entrateVerificabili) * 100;
-  const emoticonInfo = uscitePercentuale > sogliaFaccina ? "😢" : "😀";
+
+  const statusIcon = uscitePercentuale > sogliaFaccina
+    ? <XCircle className="w-6 h-6 text-red-500" />
+    : <CheckCircle2 className="w-6 h-6 text-green-500" />;
 
   const dataMensile = {
     labels: ['Netto Pulito', 'Spese', 'Tasse Accantonate'],
@@ -335,7 +339,9 @@ export default function Dashboard() {
       <div className="flex-row-between" style={{ marginBottom: "1.5rem" }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <h2 style={{ margin: 0 }}>Ciao, {user?.firstName || 'Avvocato'}! {emoticonInfo}</h2>
+            <h2 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+              Ciao, {user?.firstName || 'Avvocato'}! {statusIcon}
+            </h2>
             <button
               onClick={() => setShowGuida(true)}
               style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', padding: 0 }}
@@ -501,9 +507,9 @@ export default function Dashboard() {
                 <p style={{ fontSize: "0.9rem", lineHeight: "1.5", opacity: 0.9, marginBottom: "0.5rem" }}>
                   <strong>2. Tasse Abbattute in Diretta (Ordinario):</strong> La Dashboard &quot;sottrae&quot; automaticamente il totale delle spese legalmente deducibili dal tuo imponibile. Noterai il tuo <em>Fondo Tasse Virt.</em> abbassarsi in tempo reale all&apos;inserimento di ogni scontrino valido!
                 </p>
-                <p style={{ fontSize: "0.9rem", lineHeight: "1.5", opacity: 0.9, marginBottom: "0.5rem" }}>
-                  <strong>3. Tieni d&apos;occhio la Faccina:</strong> L&apos;emoticon in alto valuta la tua spesa globale per frenare il consumismo. Modificabile nelle impostazioni.
-                </p>
+                <li>
+                  <strong>3. Tieni d&apos;occhio l&apos;Indicatore di Spesa:</strong> L&apos;icona in alto (Verde/Rossa) valuta la tua spesa globale per frenare il consumismo. Modificabile nelle impostazioni.
+                </li>
                 <p style={{ fontSize: "0.9rem", lineHeight: "1.5", opacity: 0.9 }}>
                   <strong>4. Gamification Ristoranti:</strong> La legge italiana limita le spese per Ristoranti e Hotel al 2% dei compensi annui (YTD). Se ti avvicini o sfori questo tetto, la UI rivelerà un banner di allerta arancione/rosso sotto il grafico mensile per dirti di non dedurre più!
                 </p>

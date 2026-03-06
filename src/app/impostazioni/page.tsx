@@ -199,9 +199,9 @@ export default function Impostazioni() {
             </div>
 
             <div className="ios-card" style={{ marginBottom: "2rem" }}>
-                <h3 style={{ marginBottom: "1rem" }}>Avvisi Dashboard (Faccina)</h3>
+                <h3 style={{ marginBottom: "1rem" }}>Indicatore Visivo di Spesa</h3>
                 <p style={{ fontSize: "0.9rem", opacity: 0.8, marginBottom: "1rem" }}>
-                    Imposta la soglia di spesa massima rispetto alle entrate prima che l&apos;emoticon in Dashboard diventi triste 😢.
+                    Imposta la soglia massima percentuale rispetto alle entrate prima che l&apos;indicatore di Dashboard (Check Verde) diventi una X Rossa d&apos;allarme.
                 </p>
 
                 <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: "600" }}>Soglia di Spesa (%)</label>
