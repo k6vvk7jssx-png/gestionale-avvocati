@@ -1,6 +1,5 @@
 import { ClerkProvider, SignedIn, SignedOut, UserButton } from "@clerk/nextjs";
 import Link from 'next/link';
-import BottomNav from '@/components/BottomNav';
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
@@ -95,12 +94,66 @@ export default function RootLayout({
                 {children}
               </main>
 
-              {/* Bottom Navigation Bar */}
-              <BottomNav />
+              {/* Bottom Navigation Bar styled explicitly statically */}
+              <nav className="bottom-nav">
+                <Link href="/dashboard" className="nav-item">
+                  <span className="nav-icon">📊</span>
+                  <span className="nav-text">Dashboard</span>
+                </Link>
+                <Link href="/scanner" className="nav-item">
+                  <span className="nav-icon" style={{ background: "var(--primary)", color: "white", borderRadius: "50%", width: "45px", height: "45px", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "-15px", border: "4px solid var(--background)", transform: "translateY(-10px)", transition: "all 0.3s ease" }}>📸</span>
+                  <span className="nav-text" style={{ marginTop: "15px" }}>Scanner</span>
+                </Link>
+                <Link href="/tasse" className="nav-item">
+                  <span className="nav-icon">🧮</span>
+                  <span className="nav-text">Tasse</span>
+                </Link>
+                <Link href="/cause" className="nav-item">
+                  <span className="nav-icon">⚖️</span>
+                  <span className="nav-text">Cause</span>
+                </Link>
+                <Link href="/impostazioni" className="nav-item">
+                  <span className="nav-icon">⚙️</span>
+                  <span className="nav-text">Impo.</span>
+                </Link>
+              </nav>
+
+              {/* Client Component for applying yellow active states dynamically without remounting nav */}
+              <NavClientActivator />
             </div>
           </SignedIn>
         </body>
       </html>
     </ClerkProvider>
   );
+}
+
+function NavClientActivator() {
+  return (
+    <script dangerouslySetInnerHTML={{
+      __html: `
+        document.addEventListener('DOMContentLoaded', () => {
+          const updateActiveNav = () => {
+            const path = window.location.pathname;
+            document.querySelectorAll('.bottom-nav .nav-item').forEach(item => {
+              if (item.getAttribute('href') === path) {
+                item.classList.add('active-nav');
+              } else {
+                item.classList.remove('active-nav');
+              }
+            });
+          };
+          updateActiveNav();
+          
+          let lastPath = window.location.pathname;
+          setInterval(() => {
+            if (window.location.pathname !== lastPath) {
+              lastPath = window.location.pathname;
+              updateActiveNav();
+            }
+          }, 300);
+        });
+      `
+    }} />
+  )
 }
