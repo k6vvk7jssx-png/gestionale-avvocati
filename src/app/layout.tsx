@@ -1,5 +1,6 @@
 import { ClerkProvider, SignedIn, SignedOut, UserButton } from "@clerk/nextjs";
 import Link from 'next/link';
+import NavActiveGlow from '@/components/NavActiveGlow';
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
@@ -118,42 +119,12 @@ export default function RootLayout({
                 </Link>
               </nav>
 
-              {/* Client Component for applying yellow active states dynamically without remounting nav */}
-              <NavClientActivator />
+              {/* Headless Client Component for applying yellow active states safely */}
+              <NavActiveGlow />
             </div>
           </SignedIn>
         </body>
       </html>
     </ClerkProvider>
   );
-}
-
-function NavClientActivator() {
-  return (
-    <script dangerouslySetInnerHTML={{
-      __html: `
-        document.addEventListener('DOMContentLoaded', () => {
-          const updateActiveNav = () => {
-            const path = window.location.pathname;
-            document.querySelectorAll('.bottom-nav .nav-item').forEach(item => {
-              if (item.getAttribute('href') === path) {
-                item.classList.add('active-nav');
-              } else {
-                item.classList.remove('active-nav');
-              }
-            });
-          };
-          updateActiveNav();
-          
-          let lastPath = window.location.pathname;
-          setInterval(() => {
-            if (window.location.pathname !== lastPath) {
-              lastPath = window.location.pathname;
-              updateActiveNav();
-            }
-          }, 300);
-        });
-      `
-    }} />
-  )
 }
