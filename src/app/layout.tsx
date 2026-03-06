@@ -1,6 +1,5 @@
 import { ClerkProvider, SignedIn, SignedOut, UserButton } from "@clerk/nextjs";
 import Link from 'next/link';
-import NavActiveGlow from '@/components/NavActiveGlow';
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
@@ -118,9 +117,6 @@ export default function RootLayout({
                   <span className="nav-text">Impo.</span>
                 </Link>
               </nav>
-
-              {/* Headless Client Component for applying yellow active states safely */}
-              <NavActiveGlow />
             </div>
           </SignedIn>
         </body>
