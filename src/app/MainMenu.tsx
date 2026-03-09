@@ -45,7 +45,7 @@ export default function MainMenu() {
                     marginTop: "15px",
                     color: pathname === '/scanner' ? '#ffcc00' : 'inherit',
                     fontWeight: pathname === '/scanner' ? 'bold' : 'normal'
-                }}>Scanner</span>
+                }}>Spese</span>
             </Link>
 
             <Link href="/tasse" className={`nav-item ${pathname === '/tasse' ? 'active-nav-safe' : ''}`}>

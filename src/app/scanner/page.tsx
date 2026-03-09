@@ -319,7 +319,7 @@ export default function ScannerScontrini() {
                     className={`ios-segment ${mode === 'scanner' ? 'active' : ''}`}
                     onClick={() => setMode('scanner')}
                 >
-                    📸 Scanner AI
+                    📸 Spese AI
                 </button>
                 <button
                     className={`ios-segment ${mode === 'manuale' ? 'active' : ''}`}

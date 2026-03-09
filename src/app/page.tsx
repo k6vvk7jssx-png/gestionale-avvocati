@@ -224,7 +224,7 @@ export default function Home() {
               </div>
 
               <p className="text-xs text-center text-slate-500 mt-4 leading-relaxed">
-                Questa è una simulazione puramente matematica. <br /> Crea il tuo account per aggiungere le vere deduzioni e lo Scanner Scontrini interattivo.
+                Questa è una simulazione puramente matematica. <br /> Crea il tuo account per aggiungere le vere deduzioni e la registrazione Spese interattiva.
               </p>
 
             </div>
@@ -260,7 +260,7 @@ export default function Home() {
               <div className="bg-[#007AFF]/10 w-14 h-14 rounded-2xl flex items-center justify-center mb-6 text-[#007AFF] group-hover:scale-110 transition-transform">
                 <ScanLine className="w-7 h-7" />
               </div>
-              <h3 className="text-xl font-bold text-white mb-3 tracking-tight">Scanner Scontrini Locale</h3>
+              <h3 className="text-xl font-bold text-white mb-3 tracking-tight">Scansione Spese Locale</h3>
               <p className="text-slate-400 leading-relaxed text-sm">Fotografa la ricevuta. Il nostro OCR integrato funziona sul tuo dispositivo (Edge AI), estraendo dati sensibili senza mai inviarli su cloud esterni.</p>
             </div>
 
