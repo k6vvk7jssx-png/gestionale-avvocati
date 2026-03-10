@@ -38,6 +38,36 @@ export default function Tasse() {
     const [scaglioneManuale, setScaglioneManuale] = useState<number>(43);
     const [risultatoManuale, setRisultatoManuale] = useState<Record<string, number> | null>(null);
 
+    // Stati per Calcolatore Spese Simulate
+    interface SpesaSimulata { id: string; nome: string; importo: number; }
+    const [speseSimulate, setSpeseSimulate] = useState<SpesaSimulata[]>([]);
+    const [newSpesaNome, setNewSpesaNome] = useState("");
+    const [newSpesaImporto, setNewSpesaImporto] = useState("");
+
+    const handleQuickAdd = (nome: string, importo: number) => {
+        setSpeseSimulate(prev => [...prev, { id: Math.random().toString(), nome, importo }]);
+    };
+
+    const handleAddCustomSpesa = () => {
+        if (!newSpesaNome || !newSpesaImporto) return;
+        setSpeseSimulate(prev => [...prev, { id: Math.random().toString(), nome: newSpesaNome, importo: parseFloat(newSpesaImporto.replace(",", ".")) }]);
+        setNewSpesaNome("");
+        setNewSpesaImporto("");
+    };
+
+    const handleRemoveSpesa = (id: string) => {
+        setSpeseSimulate(prev => prev.filter(s => s.id !== id));
+    };
+
+    const totaleSpeseSimulate = speseSimulate.reduce((acc, curr) => acc + curr.importo, 0);
+
+    // Regola Fiscale FONDAMENTALE: Se forfettario, ignora e svuota le spese simulate manuali
+    useEffect(() => {
+        if (regime !== 'ordinario') {
+            setSpeseSimulate([]);
+        }
+    }, [regime]);
+
     interface CausaDettaglio {
         id: string;
         nome: string;
@@ -267,9 +297,9 @@ export default function Tasse() {
             const compensoBase = importoLordo;
             const speseGenerali = compensoBase * 0.15;
             const imponibileLordo = compensoBase + speseGenerali;
-            const speseDeducibili = 0; // Simulazione manuale non ha spese caricate
+            const speseDeducibili = totaleSpeseSimulate;
 
-            const imponibileCassa = imponibileLordo - speseDeducibili;
+            const imponibileCassa = Math.max(0, imponibileLordo - speseDeducibili);
             const cassaSoggettiva = imponibileCassa * 0.17;
             const cpa = imponibileLordo * 0.04;
             cassa = cassaSoggettiva + cpa;
@@ -277,7 +307,7 @@ export default function Tasse() {
             const ivaDaVersare = (imponibileLordo + cpa) * 0.22;
             const ritenutaScontata = imponibileLordo * 0.20;
 
-            const imponibileIrpef = imponibileCassa - cassaSoggettiva;
+            const imponibileIrpef = Math.max(0, imponibileCassa - cassaSoggettiva);
             const irpefLorda = imponibileIrpef * (scaglioneManuale / 100.0); // Simulazione su scaglione scelto
             const irpefaSaldo = Math.max(0, irpefLorda - ritenutaScontata);
 
@@ -286,7 +316,7 @@ export default function Tasse() {
 
             volumeAffariLordo = imponibileLordo + cpa + ivaDaVersare;
             imponibile = imponibileIrpef;
-            netto = volumeAffariLordo - tasse - cassa - ritenutaScontata; // in fattura manuale considero tasca reale dopo ritenuta subita
+            netto = volumeAffariLordo - tasse - cassa - ritenutaScontata - speseDeducibili; // in fattura manuale considero tasca reale dopo ritenuta subita e spese sostenute
         } else {
             // Free
             imponibile = 0; tasse = 0; cassa = 0; netto = importoLordo; volumeAffariLordo = importoLordo;
@@ -452,6 +482,69 @@ export default function Tasse() {
                             </button>
                         </div>
 
+                        {/* SEZIONE SPESE DEDUCIBILI RISERVATA AL REGIME ORDINARIO */}
+                        {(regime === 'forfettario_5' || regime === 'forfettario_15') && (
+                            <div className="mb-6 p-4 rounded-xl bg-orange-500/10 border border-orange-500/20 text-orange-600 dark:text-orange-400">
+                                <span className="font-semibold block mb-1">ℹ️ Info Deducibilità</span>
+                                <span className="text-sm">
+                                    Nel Regime Forfettario le spese reali non sono deducibili. Il fisco calcola i costi in modo forfettario tramite il Coefficiente di Redditività (78% per Avvocati) e non sottrarrà altre spese dal tuo imponibile.
+                                </span>
+                            </div>
+                        )}
+
+                        {regime === 'ordinario' && (
+                            <div className="mb-6 p-5 rounded-2xl bg-white/5 border border-white/10">
+                                <h3 className="text-[1.05rem] font-bold mb-4">Simula Spese Deducibili</h3>
+
+                                <p className="text-sm opacity-70 mb-3">Aggiungi una spesa rapida:</p>
+                                <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 mb-4">
+                                    <button onClick={() => handleQuickAdd('Software/Abbonamenti', 50)} className="text-sm py-2 px-3 rounded-lg bg-[#007AFF]/10 text-[#007AFF] border border-[#007AFF]/20 hover:bg-[#007AFF]/20 transition-colors">💻 Software (50€)</button>
+                                    <button onClick={() => handleQuickAdd('Cancelleria', 30)} className="text-sm py-2 px-3 rounded-lg bg-[#007AFF]/10 text-[#007AFF] border border-[#007AFF]/20 hover:bg-[#007AFF]/20 transition-colors">📎 Cancelleria (30€)</button>
+                                    <button onClick={() => handleQuickAdd('Bollette/Utenze', 100)} className="text-sm py-2 px-3 rounded-lg bg-[#007AFF]/10 text-[#007AFF] border border-[#007AFF]/20 hover:bg-[#007AFF]/20 transition-colors">🔌 Utenze (100€)</button>
+                                    <button onClick={() => handleQuickAdd('Corsi di Formazione', 250)} className="text-sm py-2 px-3 rounded-lg bg-[#007AFF]/10 text-[#007AFF] border border-[#007AFF]/20 hover:bg-[#007AFF]/20 transition-colors">🎓 Corsi/Ord. (250€)</button>
+                                </div>
+
+                                <p className="text-sm opacity-70 mb-2 mt-4">Simula spesa personalizzata:</p>
+                                <div className="flex gap-2 mb-4">
+                                    <input
+                                        type="text"
+                                        placeholder="Nome"
+                                        className="ios-input !mb-0 !py-2 !text-base focus:ring-[#007AFF]"
+                                        value={newSpesaNome}
+                                        onChange={e => setNewSpesaNome(e.target.value)}
+                                    />
+                                    <input
+                                        type="number"
+                                        placeholder="€"
+                                        className="ios-input !mb-0 !py-2 !text-base w-24 focus:ring-[#007AFF]"
+                                        value={newSpesaImporto}
+                                        onChange={e => setNewSpesaImporto(e.target.value)}
+                                    />
+                                    <button onClick={handleAddCustomSpesa} className="bg-[#007AFF] text-white font-bold rounded-xl px-4 hover:opacity-80">+</button>
+                                </div>
+
+                                {speseSimulate.length > 0 && (
+                                    <div className="mt-4 pt-4 border-t border-white/10">
+                                        <div className="flex justify-between items-center mb-2">
+                                            <span className="font-semibold text-sm opacity-60 uppercase tracking-wider">Lista Spese Mese</span>
+                                            <span className="font-bold text-red-500">Tot: €{totaleSpeseSimulate.toFixed(2)}</span>
+                                        </div>
+                                        <div className="flex flex-col gap-2 max-h-32 overflow-y-auto pr-2">
+                                            {speseSimulate.map(s => (
+                                                <div key={s.id} className="flex justify-between items-center bg-black/20 dark:bg-white/5 py-2 px-3 rounded-lg border border-black/5 dark:border-white/5">
+                                                    <span className="text-sm truncate mr-2">{s.nome}</span>
+                                                    <div className="flex items-center gap-3">
+                                                        <span className="text-sm font-semibold max-w-[80px]">€{s.importo.toFixed(2)}</span>
+                                                        <button onClick={() => handleRemoveSpesa(s.id)} className="text-red-500 hover:text-red-400" title="Elimina">🗑️</button>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
                         {regime === 'ordinario' && (
                             <>
                                 <label style={{ display: "block", marginTop: "1rem", marginBottom: "0.5rem", fontWeight: "600" }}>
@@ -497,6 +590,13 @@ export default function Tasse() {
                                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "1rem", borderBottom: "1px solid var(--border)", paddingBottom: "0.5rem" }}>
                                     <span style={{ opacity: 0.8 }}>Imponibile Tassabile (Cassa Dedotta)</span>
                                     <span style={{ fontWeight: "600" }}>€{risultatoManuale.imponibile.toFixed(2)}</span>
+                                </div>
+                            )}
+
+                            {regime === 'ordinario' && (
+                                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "1rem", borderBottom: "1px solid var(--border)", paddingBottom: "0.5rem", color: "var(--primary)" }}>
+                                    <span style={{ opacity: 0.8 }}>Spese Simulate Dedotte</span>
+                                    <span style={{ fontWeight: "600" }}>- €{totaleSpeseSimulate.toFixed(2)}</span>
                                 </div>
                             )}
 
