@@ -14,7 +14,6 @@ ChartJS.register(ArcElement, Tooltip, Legend);
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
-// Definisco le categorie fuori dal componente per non ricrearle
 const categorieIniziali = [
   { nome: "Alimenti", totale: 0, icona: "🛒" },
   { nome: "Ristoranti", totale: 0, icona: "🍽️" },
@@ -22,14 +21,18 @@ const categorieIniziali = [
   { nome: "Lavoro", totale: 0, icona: "💼" },
   { nome: "Cancelleria", totale: 0, icona: "📎" },
   { nome: "Software", totale: 0, icona: "💻" },
+  { nome: "Telefonia", totale: 0, icona: "📱" },
   { nome: "Auto/Trasporti", totale: 0, icona: "🚗" },
   { nome: "Carburante", totale: 0, icona: "⛽" },
-  { nome: "Viaggi", totale: 0, icona: "✈️" },
-  { nome: "Tasse", totale: 0, icona: "🏦" },
+  { nome: "Viaggi", totale: 0, icona: "🚆" },
+  { nome: "Spese Clienti", totale: 0, icona: "🤝" },
+  { nome: "Rappresentanza", totale: 0, icona: "🍾" },
+  { nome: "Tasse", totale: 0, icona: "🏛️" },
   { nome: "Senza Tasse", totale: 0, icona: "🆓" },
   { nome: "Utenze", totale: 0, icona: "💡" },
+  { nome: "Affitto", totale: 0, icona: "🏠" },
   { nome: "Formazione", totale: 0, icona: "📚" },
-  { nome: "Abbigliamento", totale: 0, icona: "👔" },
+  { nome: "Abbigliamento", totale: 0, icona: "⚖️" },
   { nome: "Imprevisti", totale: 0, icona: "⚠️" },
   { nome: "Altro", totale: 0, icona: "📦" },
 ];
@@ -50,14 +53,18 @@ export default function Dashboard() {
     { nome: "Lavoro", icona: "💼" },
     { nome: "Cancelleria", icona: "📎" },
     { nome: "Software", icona: "💻" },
+    { nome: "Telefonia", icona: "📱" },
     { nome: "Auto/Trasporti", icona: "🚗" },
     { nome: "Carburante", icona: "⛽" },
-    { nome: "Viaggi", icona: "✈️" },
-    { nome: "Tasse", icona: "🏦" },
+    { nome: "Viaggi", icona: "🚆" },
+    { nome: "Spese Clienti", icona: "🤝" },
+    { nome: "Rappresentanza", icona: "🍾" },
+    { nome: "Tasse", icona: "🏛️" },
     { nome: "Senza Tasse", icona: "🆓" },
     { nome: "Utenze", icona: "💡" },
+    { nome: "Affitto", icona: "🏠" },
     { nome: "Formazione", icona: "📚" },
-    { nome: "Abbigliamento", icona: "👔" },
+    { nome: "Abbigliamento", icona: "⚖️" },
     { nome: "Imprevisti", icona: "⚠️" },
     { nome: "Altro", icona: "📦" },
   ];
@@ -182,6 +189,12 @@ export default function Dashboard() {
 
       // 3. Calcolo Finanziario Combinato (Entrate e Tasse)
       totTasseAccantonate = 0;
+
+      let ordTotImponibileLordo = 0;
+      let ordTotCpa = 0;
+      let ordTotIva = 0;
+      let ordTotRitenuta = 0;
+
       if (cause) {
         cause.forEach(c => {
           const tipoFiscale = c.tipologia_fiscale || "forfettario_15";
@@ -193,46 +206,69 @@ export default function Dashboard() {
             const redditoImponibileLordo = (compensoPuro + speseGenerali) * 0.78;
 
             const secchio1_cpa = c.cpa_4 ? Number(c.cpa_4) : (compensoPuro + speseGenerali) * 0.04;
-            const secchio2_cassa = redditoImponibileLordo * 0.17; // Contributo Soggettivo
+            const secchio2_cassa = redditoImponibileLordo * 0.17;
 
-            // BUGFIX: Deducibilità Contributo Soggettivo prima dell'imposta sostitutiva
-            const baseImponibileNetta = redditoImponibileLordo - secchio2_cassa;
-
+            const baseImponibileNetta = Math.max(0, redditoImponibileLordo - secchio2_cassa);
             const aliquotaFisco = tipoFiscale === "forfettario_5" ? 0.05 : 0.15;
             const secchio3_imposta = baseImponibileNetta * aliquotaFisco;
 
             totTasseAccantonate += (secchio1_cpa + secchio2_cassa + secchio3_imposta);
 
           } else if (tipoFiscale === "ordinario") {
-            // Modello ORDINARIO
+            // Modello ORDINARIO: Aggreghiamo e tassiamo tutto insieme per permettere la deduzione globale
             const compensoPuro = Number(c.compenso_base || c.compenso_lordo || 0);
             const speseGenerali = compensoPuro * 0.15;
             const imponibileLordo = compensoPuro + speseGenerali;
 
-            // EPICA 3: Sottraggo le uscite deducibili dall'Imponibile Cassa per calcolare l' Utile Lordo reale
-            const utileLordo = Math.max(0, imponibileLordo - totUsciteDeducibili);
-
-            const secchio1_cpa = c.cpa_4 ? Number(c.cpa_4) : imponibileLordo * 0.04;
-            const secchio2_iva = c.iva_22 ? Number(c.iva_22) : (imponibileLordo + secchio1_cpa) * 0.22;
-            const secchio3_cassa = utileLordo * 0.17; // Soggettivo
-
-            const percentualeIrpef = currentScaglione / 100.0;
-            const baseIrpef = Math.max(0, utileLordo - secchio3_cassa);
-            const secchio4_irpefLorda = baseIrpef * percentualeIrpef;
-            const secchio5_addizionali = baseIrpef * 0.03; // ~3%
-
-            // BUGFIX: Ritenuta calcolata sull'imponibile lordo (compenso + spese generali)
-            const scontoRitenuta = c.ritenuta_20 ? Number(c.ritenuta_20) : imponibileLordo * 0.20;
-            const irpefaSaldo = Math.max(0, secchio4_irpefLorda - scontoRitenuta);
-
-            totTasseAccantonate += (secchio1_cpa + secchio2_iva + secchio3_cassa + irpefaSaldo + secchio5_addizionali);
-
-            totUsciteDeducibili = 0; // Evita di ri-sottrarre le stesse spese per le successive fatture dello stesso mese
-
+            ordTotImponibileLordo += imponibileLordo;
+            ordTotCpa += c.cpa_4 ? Number(c.cpa_4) : imponibileLordo * 0.04;
+            ordTotIva += c.iva_22 ? Number(c.iva_22) : (imponibileLordo + (c.cpa_4 ? Number(c.cpa_4) : imponibileLordo * 0.04)) * 0.22;
+            ordTotRitenuta += c.ritenuta_20 ? Number(c.ritenuta_20) : imponibileLordo * 0.20;
           } else if (tipoFiscale === "free") {
             totTasseAccantonate += 0;
           }
         });
+      }
+
+      // EPICA 3: Calcolo Deduzioni Esatte per Ordinario
+      let deducibilitaSpeseContext = 0;
+      let deducibilitaOneriContext = 0; // Cassa Forense
+
+      ctxExpenses.forEach(e => {
+        let rate = 0;
+        let isOnere = false;
+        switch (e.category) {
+          case "Lavoro": case "Cancelleria": case "Software": case "Spese Clienti": case "Rappresentanza": case "Formazione": case "Abbigliamento":
+            rate = 1.0; break;
+          case "Telefonia":
+            rate = 0.80; break;
+          case "Ristoranti":
+            rate = 0.75; break;
+          case "Utenze": case "Affitto":
+            rate = 0.50; break;
+          case "Auto/Trasporti": case "Carburante": case "Viaggi":
+            rate = 0.20; break;
+          case "Tasse":
+            rate = 1.0; isOnere = true; break;
+        }
+        if (isOnere) deducibilitaOneriContext += (e.amount * rate);
+        else deducibilitaSpeseContext += (e.amount * rate);
+      });
+
+      if (ordTotImponibileLordo > 0) {
+        const utileLordoCassa = Math.max(0, ordTotImponibileLordo - totUsciteDeducibili - deducibilitaSpeseContext);
+        const secchio3_cassa = utileLordoCassa * 0.17; // Sugli utili c'è il soggettivo
+
+        // Oneri Deducibili ( abbattono l'IRPEF, non la cassa )
+        const imponibileIrpef = Math.max(0, utileLordoCassa - secchio3_cassa - deducibilitaOneriContext);
+
+        const percentualeIrpef = currentScaglione / 100.0;
+        const secchio4_irpefLorda = imponibileIrpef * percentualeIrpef;
+        const secchio5_addizionali = imponibileIrpef * 0.03; // ~3%
+
+        const irpefaSaldo = Math.max(0, secchio4_irpefLorda - ordTotRitenuta);
+
+        totTasseAccantonate += (ordTotCpa + ordTotIva + secchio3_cassa + irpefaSaldo + secchio5_addizionali);
       }
 
       // Applica un safety cap
@@ -606,19 +642,67 @@ export default function Dashboard() {
               </div>
 
               <div className="ios-card" style={{ marginBottom: "2rem" }}>
-                <h3 style={{ color: "var(--primary)", marginBottom: "0.5rem" }}>Tassi di Deducibilità Centralizzati</h3>
+                <h3 style={{ color: "var(--primary)", marginBottom: "0.5rem" }}>Motore delle Deduzioni (Regime Ordinario)</h3>
                 <p style={{ fontSize: "0.85rem", opacity: 0.8, marginBottom: "1rem", background: "rgba(255,59,48,0.1)", padding: "10px", borderRadius: "8px", color: "var(--destructive)" }}>
-                  <strong>Nota per i Forfettari:</strong> I bonus deducibilità spiegati sopra valgono SOLO per il <strong>Regime Ordinario</strong> (impostabile dal tuo Profilo). I forfettari hanno costi scaricati forfettizzati automaticamente al 15% per legge, indipendenti dalle spese caricate in app.
+                  <strong>Nota per i Forfettari:</strong> I bonus deducibilità spiegati sotto valgono SOLO per il <strong>Regime Ordinario</strong>. I forfettari hanno costi scaricati automaticamente al 15% per legge (Coefficiente di Redditività).
                 </p>
-                <ul style={{ fontSize: "0.85rem", paddingLeft: "1.2rem", lineHeight: "1.6", opacity: 0.9 }}>
-                  <li style={{ marginBottom: "6px" }}><strong>100%:</strong> Cancelleria, software, formazione, spese di lavoro/ufficio esclusivo.</li>
-                  <li style={{ marginBottom: "6px" }}><strong>80%:</strong> Telefonia, internet, utenze promiscue.</li>
-                  <li style={{ marginBottom: "6px" }}><strong>75%:</strong> Ristoranti e Trasferte. Il motore incrocia questo rate con il tetto di &quot;plafond&quot; massimo annuo (il tuo 2% dei compensi totali incassati). Oltre questa soglia, non saranno più validi!</li>
-                  <li style={{ marginBottom: "6px" }}><strong>50%:</strong> Affitto e Utenze per casa-studio (Promiscuo).</li>
-                  <li><strong>20%:</strong> Auto, viaggi vari, mezzi di trasporto, carburante.</li>
-                </ul>
+                <div style={{ fontSize: "0.85rem", lineHeight: "1.6", opacity: 0.9 }}>
+                  <div style={{ marginBottom: "12px" }}>
+                    <span style={{ color: "var(--emerald-500)", fontWeight: "bold" }}>🟢 DEDUCIBILI AL 100% (Senza limiti)</span>
+                    <ul style={{ paddingLeft: "1.2rem", marginTop: "4px" }}>
+                      <li><strong>Lavoro & Cancelleria:</strong> Computer, tablet, stampanti, carta, toner, penne.</li>
+                      <li><strong>Software:</strong> PEC, firma digitale, abbonamenti cloud (LexTax 😍).</li>
+                      <li><strong>Spese Anticipate:</strong> Rimborsi spese in nome/conto del cliente debitamente fatturati.</li>
+                      <li><strong>Abbigliamento (Toga):</strong> Dedicato solo alla Toga per avvocati.</li>
+                    </ul>
+                  </div>
+
+                  <div style={{ marginBottom: "12px" }}>
+                    <span style={{ color: "#ffcc00", fontWeight: "bold" }}>🟡 DEDUCIBILI AL 100% (Con tetti massimi)</span>
+                    <ul style={{ paddingLeft: "1.2rem", marginTop: "4px" }}>
+                      <li><strong>Formazione e Master:</strong> Master, Corsi, Convegni deducibili al 100% fino a un massimo di 10.000€ l'anno.</li>
+                      <li><strong>Spese di Rappresentanza:</strong> Omaggi ai clienti e pubbliche relazioni, nel limite dell'1% dei ricavi.</li>
+                    </ul>
+                  </div>
+
+                  <div style={{ marginBottom: "12px" }}>
+                    <span style={{ color: "#007AFF", fontWeight: "bold" }}>🔵 DEDUCIBILI ALL'80%</span>
+                    <ul style={{ paddingLeft: "1.2rem", marginTop: "4px" }}>
+                      <li><strong>Telefonia & Internet:</strong> Smartphone, bollette telefoniche e traffico dati.</li>
+                    </ul>
+                  </div>
+
+                  <div style={{ marginBottom: "12px" }}>
+                    <span style={{ color: "#ff9f0a", fontWeight: "bold" }}>🟠 DEDUCIBILI AL 75%</span>
+                    <ul style={{ paddingLeft: "1.2rem", marginTop: "4px" }}>
+                      <li><strong>Ristoranti & Trasferte:</strong> Pranzi/cene di lavoro. Il limite globale annuo non può superare il 2% dei compensi totali incassati.</li>
+                    </ul>
+                  </div>
+
+                  <div style={{ marginBottom: "12px" }}>
+                    <span style={{ color: "#bf5af2", fontWeight: "bold" }}>🟣 DEDUCIBILI AL 50%</span>
+                    <ul style={{ paddingLeft: "1.2rem", marginTop: "4px" }}>
+                      <li><strong>Affitto & Utenze (Promiscuo):</strong> Affitto, luce, gas, condominio, valevole SE non possiedi un altro studio esclusivo nello stesso Comune.</li>
+                    </ul>
+                  </div>
+
+                  <div style={{ marginBottom: "12px" }}>
+                    <span style={{ color: "var(--destructive)", fontWeight: "bold" }}>🔴 DEDUCIBILI AL 20%</span>
+                    <ul style={{ paddingLeft: "1.2rem", marginTop: "4px" }}>
+                      <li><strong>Auto & Trasporti/Viaggi:</strong> Carburante, assicurazione auto, pedaggi, manutenzioni limitate ai tetti fiscali (max 18.075,99€ calcolo auto).</li>
+                    </ul>
+                  </div>
+
+                  <div style={{ marginBottom: "12px", background: "white", padding: "10px", borderRadius: "8px", color: "black" }}>
+                    <span style={{ color: "black", fontWeight: "800", display: "flex", alignItems: "center", gap: "6px" }}>🏛️ ONERI DEDUCIBILI DALL'IRPEF</span>
+                    <p style={{ marginTop: "4px", marginBottom: 0 }}>
+                      <strong>Cassa Forense:</strong> Il Contributo Soggettivo non è un costo dello studio ma un Onerere. Questo gestionale scala il 100% dei contributi versati (Categoria: Tasse) direttamente dall'IRPEF, abbassando notevolmente le tasse matematiche al volo sulle tue fatture d'incasso!
+                    </p>
+                  </div>
+
+                </div>
                 <p style={{ fontSize: "0.75rem", color: "var(--destructive)", marginTop: "1rem", opacity: 0.8 }}>
-                  <em>Disclaimer: Le percentuali sono stimate algoritmicamente dal gestionale a titolo informativo basandosi sull&apos;attuale normativa TUIR (Ordinario Avvocati). Il commercialista valuterà caso per caso il reale principio di inerenza e competenza.</em>
+                  <em>Disclaimer: LexTax applica le aliquote presunte per un normale Libero Professionista. Fai sempre validare l'inerenza della spesa dal tuo Medico o Commercialista (art 54 TUIR).</em>
                 </p>
               </div>
 
