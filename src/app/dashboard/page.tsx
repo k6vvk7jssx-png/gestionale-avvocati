@@ -44,14 +44,21 @@ export default function Dashboard() {
 
   // Helper per raggruppare spese in tempo reale
   const categorieContextList = [
-    { nome: "Alimentari", icona: "🛒" },
+    { nome: "Alimenti", icona: "🛒" },
     { nome: "Ristoranti", icona: "🍽️" },
     { nome: "Salute", icona: "💊" },
+    { nome: "Lavoro", icona: "💼" },
     { nome: "Cancelleria", icona: "📎" },
-    { nome: "Software/Abbonamenti", icona: "💻" },
-    { nome: "Auto", icona: "🚗" },
-    { nome: "Bollette/Utenze", icona: "🔌" },
-    { nome: "Corsi di Formazione", icona: "🎓" },
+    { nome: "Software", icona: "💻" },
+    { nome: "Auto/Trasporti", icona: "🚗" },
+    { nome: "Carburante", icona: "⛽" },
+    { nome: "Viaggi", icona: "✈️" },
+    { nome: "Tasse", icona: "🏦" },
+    { nome: "Senza Tasse", icona: "🆓" },
+    { nome: "Utenze", icona: "💡" },
+    { nome: "Formazione", icona: "📚" },
+    { nome: "Abbigliamento", icona: "👔" },
+    { nome: "Imprevisti", icona: "⚠️" },
     { nome: "Altro", icona: "📦" },
   ];
 

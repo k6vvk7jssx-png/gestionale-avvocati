@@ -4,154 +4,207 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useExpenseContext } from "@/context/ExpenseContext";
 import { motion } from "framer-motion";
-import { Calculator, CheckCircle2 } from "lucide-react";
+import { Delete, Calculator } from "lucide-react";
 
-const CATEGORIE_DEDUCIBILI = [
-    "Software/Abbonamenti",
-    "Auto",
-    "Cancelleria",
-    "Corsi di Formazione",
-    "Ristoranti",
-    "Bollette/Utenze"
+const TUTTE_CATEGORIE = [
+    { id: "Alimenti", label: "Alimenti", deducibilita: "0%" },
+    { id: "Ristoranti", label: "Ristoranti", deducibilita: "75%" },
+    { id: "Salute", label: "Salute", deducibilita: "0%" },
+    { id: "Lavoro", label: "Lavoro", deducibilita: "100%" },
+    { id: "Cancelleria", label: "Cancelleria", deducibilita: "100%" },
+    { id: "Software", label: "Software", deducibilita: "100%" },
+    { id: "Auto/Trasporti", label: "Auto/Trasporti", deducibilita: "20%" },
+    { id: "Carburante", label: "Carburante", deducibilita: "20%" },
+    { id: "Viaggi", label: "Viaggi", deducibilita: "75%" },
+    { id: "Tasse", label: "Tasse", deducibilita: "0%" },
+    { id: "Senza Tasse", label: "Senza Tasse", deducibilita: "0%" },
+    { id: "Utenze", label: "Utenze", deducibilita: "50%" },
+    { id: "Formazione", label: "Formazione", deducibilita: "100%" },
+    { id: "Abbigliamento", label: "Abbigliamento", deducibilita: "0%" },
+    { id: "Imprevisti", label: "Imprevisti", deducibilita: "0%" },
+    { id: "Altro", label: "Altro", deducibilita: "0%" },
 ];
-
-const CATEGORIE_ALTRE = [
-    "Alimentari",
-    "Salute",
-    "Altro"
-];
-
-const TUTTE_CATEGORIE_ALFABETICO = [...CATEGORIE_DEDUCIBILI, ...CATEGORIE_ALTRE].sort();
 
 export default function AggiungiSpesa() {
     const router = useRouter();
     const { regime, addExpense } = useExpenseContext();
 
-    const [amount, setAmount] = useState("");
-    const [category, setCategory] = useState(
-        regime === "ordinario" ? CATEGORIE_DEDUCIBILI[0] : TUTTE_CATEGORIE_ALFABETICO[0]
-    );
-    const [description, setDescription] = useState("");
+    const [amount, setAmount] = useState<string>("0");
+    const [selectedCategory, setSelectedCategory] = useState<string>("Cancelleria");
     const [isSuccess, setIsSuccess] = useState(false);
 
+    const handleKeyPress = (key: string) => {
+        setAmount((prev) => {
+            if (key === "BACKSPACE") {
+                if (prev.length <= 1) return "0";
+                return prev.slice(0, -1);
+            }
+
+            if (key === ",") {
+                if (prev.includes(",")) return prev; // Solo una virgola permessa
+                return prev + ",";
+            }
+
+            // Se è superato un limite logico (es. 2 decimali) blocca
+            if (prev.includes(",")) {
+                const dec = prev.split(",")[1];
+                if (dec && dec.length >= 2) return prev;
+            }
+
+            if (prev === "0") {
+                if (key === "0") return "0";
+                return key;
+            }
+
+            return prev + key;
+        });
+    };
+
     const handleSave = () => {
-        if (!amount || parseFloat(amount) <= 0) {
-            alert("Inserisci un importo valido");
+        if (amount === "0" || amount === "0,") {
+            alert("Inserisci un importo valido.");
             return;
         }
 
+        const parsedAmount = parseFloat(amount.replace(',', '.'));
+
         addExpense({
-            amount: parseFloat(amount),
-            category,
-            description
+            amount: parsedAmount,
+            category: selectedCategory,
+            description: "" // Fast mode omits description
         });
 
         setIsSuccess(true);
         setTimeout(() => {
             setIsSuccess(false);
-            setAmount("");
-            setDescription("");
-            setCategory(regime === "ordinario" ? CATEGORIE_DEDUCIBILI[0] : TUTTE_CATEGORIE_ALFABETICO[0]);
+            setAmount("0");
             router.push("/dashboard");
-        }, 1200);
+        }, 800);
     };
 
     return (
-        <div className="min-h-screen bg-[#f2f2f7] dark:bg-black text-black dark:text-white pb-24 px-4 pt-6">
-            <div className="max-w-xl mx-auto">
-                <div className="flex items-center justify-between mb-8">
-                    <h1 className="text-2xl font-bold tracking-tight">Aggiungi Spesa</h1>
-                    <div className="bg-[#007AFF]/10 text-[#007AFF] px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wider">
+        <div className="min-h-screen bg-[#000000] text-white flex flex-col pb-24 items-center px-4">
+            {/* Header Semplice */}
+            <div className="w-full max-w-md pt-6 pb-2 flex items-center justify-between">
+                <h1 className="text-xl font-medium tracking-tight text-white/90">Aggiungi Spesa</h1>
+                <div className="flex gap-2 items-center">
+                    <span className={`text-[10px] uppercase font-bold px-2 py-1 rounded-full ${regime === 'ordinario' ? 'bg-[#007AFF]/20 text-[#007AFF]' : 'bg-orange-500/20 text-orange-500'}`}>
                         {regime}
-                    </div>
+                    </span>
+                    <span className="text-emerald-400 font-medium text-sm bg-emerald-400/10 px-3 py-1 rounded-full">
+                        Fast Mode ⚡
+                    </span>
                 </div>
+            </div>
 
+            <div className="w-full max-w-md flex-1 flex flex-col justify-end">
                 {isSuccess ? (
                     <motion.div
                         initial={{ opacity: 0, scale: 0.9 }}
                         animate={{ opacity: 1, scale: 1 }}
-                        className="flex flex-col items-center justify-center py-20"
+                        className="flex-1 flex flex-col items-center justify-center py-20"
                     >
-                        <CheckCircle2 className="w-20 h-20 text-green-500 mb-4" />
-                        <h2 className="text-xl font-semibold">Spesa Aggiunta!</h2>
+                        <div className="w-20 h-20 bg-green-500/20 rounded-full flex items-center justify-center mb-4">
+                            <Calculator className="w-10 h-10 text-green-500" />
+                        </div>
+                        <h2 className="text-2xl font-semibold">Spesa Registrata!</h2>
                     </motion.div>
                 ) : (
-                    <motion.div
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="space-y-6"
-                    >
-                        {/* Importo */}
-                        <div className="ios-card bg-white dark:bg-[#1c1c1e] p-5">
-                            <label className="block text-sm font-medium opacity-70 mb-2">Importo (€)</label>
-                            <div className="relative">
-                                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-2xl opacity-50">€</span>
-                                <input
-                                    type="number"
-                                    min="0"
-                                    step="0.01"
-                                    placeholder="0.00"
-                                    className="w-full bg-transparent text-4xl font-bold pl-12 py-2 outline-none"
-                                    value={amount}
-                                    onChange={(e) => setAmount(e.target.value)}
-                                />
+                    <>
+                        {/* 1. DISPLAY IMPORTO */}
+                        <div className="flex flex-col items-end justify-center py-4 mb-2">
+                            <div className="text-white/50 text-sm mb-1 font-medium tracking-wider">Importo Totale</div>
+                            <div className="text-6xl md:text-7xl font-bold tracking-tighter text-white tabular-nums flex items-baseline">
+                                <span className="text-3xl text-white/50 mr-2 font-normal">€</span>
+                                {amount}
                             </div>
                         </div>
 
-                        {/* Categoria Select - Logica Bivio Fiscale */}
-                        <div className="ios-card bg-white dark:bg-[#1c1c1e] p-5">
-                            <label className="block text-sm font-medium opacity-70 mb-2">Categoria Spesa</label>
-                            <select
-                                className="w-full bg-black/5 dark:bg-white/5 rounded-xl px-4 py-3 text-lg outline-none appearance-none"
-                                value={category}
-                                onChange={(e) => setCategory(e.target.value)}
-                            >
-                                {regime === "ordinario" ? (
-                                    <>
-                                        <optgroup label="✓ Deducibili">
-                                            {CATEGORIE_DEDUCIBILI.map(cat => (
-                                                <option key={cat} value={cat}>{cat}</option>
-                                            ))}
-                                        </optgroup>
-                                        <optgroup label="Altre Spese">
-                                            {CATEGORIE_ALTRE.map(cat => (
-                                                <option key={cat} value={cat}>{cat}</option>
-                                            ))}
-                                        </optgroup>
-                                    </>
-                                ) : (
-                                    <>
-                                        {TUTTE_CATEGORIE_ALFABETICO.map(cat => (
-                                            <option key={cat} value={cat}>{cat}</option>
-                                        ))}
-                                    </>
-                                )}
-                            </select>
+                        {/* 3. SELETTORE CATEGORIA RAPIDO (Pillole / Badge) */}
+                        <div className="w-full mb-6 relative">
+                            <div className="flex overflow-x-auto gap-3 pb-4 snap-x hide-scrollbar" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                                {TUTTE_CATEGORIE.map((cat) => {
+                                    const isActive = selectedCategory === cat.id;
+                                    const isDeducibile = cat.deducibilita !== "0%";
+                                    return (
+                                        <button
+                                            key={cat.id}
+                                            onClick={() => setSelectedCategory(cat.id)}
+                                            className={`snap-start whitespace-nowrap px-4 py-3 rounded-2xl border transition-all duration-200 flex flex-col items-center justify-center min-w-[105px] ${isActive
+                                                ? "bg-[#007AFF]/20 border-[#007AFF] text-white"
+                                                : "bg-white/5 border-white/5 text-white/60 hover:bg-white/10"
+                                                }`}
+                                        >
+                                            <span className={`font-semibold text-sm ${isActive ? "text-[#007AFF]" : ""}`}>
+                                                {cat.label}
+                                            </span>
+                                            {/* Mostra il badge di deducibilità SOLO se siamo in ordinario e se c'è % */}
+                                            {regime === "ordinario" && isDeducibile && (
+                                                <span className={`text-[10px] uppercase tracking-wider font-bold mt-1 ${isActive ? "text-[#007AFF]/80" : "text-emerald-400/70"}`}>
+                                                    Ded. {cat.deducibilita}
+                                                </span>
+                                            )}
+                                            {/* Per ordinario, se NON c'è deducibilità, mostra chiaramente 0% o No Ded. */}
+                                            {regime === "ordinario" && !isDeducibile && (
+                                                <span className={`text-[10px] uppercase tracking-wider font-bold mt-1 ${isActive ? "text-red-400/80" : "text-white/20"}`}>
+                                                    No Ded.
+                                                </span>
+                                            )}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                            {/* Sfumatura laterale per indicare lo scroll */}
+                            <div className="absolute right-0 top-0 bottom-4 w-8 bg-gradient-to-l from-black to-transparent pointer-events-none"></div>
                         </div>
 
-                        {/* Descrizione (Opzionale) */}
-                        <div className="ios-card bg-white dark:bg-[#1c1c1e] p-5">
-                            <label className="block text-sm font-medium opacity-70 mb-2">Descrizione (Opzionale)</label>
-                            <input
-                                type="text"
-                                placeholder="Es: Cena cliente Rossi"
-                                className="w-full bg-transparent text-lg outline-none"
-                                value={description}
-                                onChange={(e) => setDescription(e.target.value)}
-                            />
+                        {/* 2. TASTIERINO NUMERICO CUSTOM (GLASSMORPHISM) */}
+                        <div className="grid grid-cols-3 gap-3 mb-6">
+                            {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((num) => (
+                                <motion.button
+                                    key={num}
+                                    whileTap={{ scale: 0.92, backgroundColor: "rgba(255,255,255,0.2)" }}
+                                    onClick={() => handleKeyPress(num)}
+                                    className="bg-white/10 backdrop-blur-md rounded-2xl h-16 text-3xl font-medium text-white flex items-center justify-center border border-white/5 shadow-sm"
+                                >
+                                    {num}
+                                </motion.button>
+                            ))}
+
+                            <motion.button
+                                whileTap={{ scale: 0.92, backgroundColor: "rgba(255,255,255,0.2)" }}
+                                onClick={() => handleKeyPress(",")}
+                                className="bg-white/5 backdrop-blur-md rounded-2xl h-16 text-3xl font-medium text-white/70 flex items-center justify-center border border-white/5"
+                            >
+                                ,
+                            </motion.button>
+
+                            <motion.button
+                                whileTap={{ scale: 0.92, backgroundColor: "rgba(255,255,255,0.2)" }}
+                                onClick={() => handleKeyPress("0")}
+                                className="bg-white/10 backdrop-blur-md rounded-2xl h-16 text-3xl font-medium text-white flex items-center justify-center border border-white/5 shadow-sm"
+                            >
+                                0
+                            </motion.button>
+
+                            <motion.button
+                                whileTap={{ scale: 0.92, backgroundColor: "rgba(255,255,255,0.2)" }}
+                                onClick={() => handleKeyPress("BACKSPACE")}
+                                className="bg-white/5 backdrop-blur-md rounded-2xl h-16 text-2xl font-medium text-white/70 flex items-center justify-center border border-white/5"
+                            >
+                                <Delete className="w-8 h-8 opacity-80" />
+                            </motion.button>
                         </div>
 
-                        {/* Tasto Aggiungi in basso */}
-                        <div className="pt-4">
-                            <button
-                                onClick={handleSave}
-                                className="w-full bg-[#007AFF] text-white font-bold text-lg py-4 rounded-2xl shadow-lg hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
-                            >
-                                <Calculator className="w-5 h-5" />
-                                Aggiungi Spesa
-                            </button>
-                        </div>
-                    </motion.div>
+                        {/* 4. BOTTONE SALVA STICKY */}
+                        <motion.button
+                            whileTap={{ scale: 0.97 }}
+                            onClick={handleSave}
+                            className="w-full bg-[#007AFF] hover:bg-[#007AFF]/90 text-white font-bold text-lg py-5 rounded-2xl shadow-[0_0_20px_rgba(0,122,255,0.4)] transition-all flex items-center justify-center gap-2"
+                        >
+                            Registra Spesa
+                        </motion.button>
+                    </>
                 )}
             </div>
         </div>
