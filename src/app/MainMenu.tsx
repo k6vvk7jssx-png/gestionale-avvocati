@@ -100,7 +100,7 @@ export default function MainMenu() {
 
                 {/* Logo Area */}
                 <div className="h-16 flex items-center justify-between px-6 border-b border-white/5">
-                    <span className="text-lg font-bold tracking-tighter text-white">Gestionale Facile</span>
+                    <span className="text-lg font-bold tracking-tighter text-white">LexTax</span>
                 </div>
 
                 {/* Nav Links */}
@@ -116,8 +116,8 @@ export default function MainMenu() {
                             key={item.href}
                             href={item.href}
                             className={`flex items-center gap-4 px-4 py-3 rounded-xl transition-all ${isActive(item.href)
-                                    ? "bg-[#18212f] text-white border-l-4 border-l-[#ffcc00]"
-                                    : "text-slate-400 hover:bg-[#18212f]/50 hover:text-white border-l-4 border-l-transparent"
+                                ? "bg-[#18212f] text-white border-l-4 border-l-[#ffcc00]"
+                                : "text-slate-400 hover:bg-[#18212f]/50 hover:text-white border-l-4 border-l-transparent"
                                 }`}
                         >
                             <span className="text-xl" style={{ filter: isActive(item.href) ? "drop-shadow(0 0 8px rgba(255, 204, 0, 0.4))" : "none" }}>

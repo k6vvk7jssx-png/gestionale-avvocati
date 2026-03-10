@@ -17,13 +17,13 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Gestionale Facile",
+  title: "LexTax",
   description: "App gestionale per avvocati in regime forfettario e ordinario",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "Gestionale Facile"
+    title: "LexTax"
   }
 };
 
@@ -89,7 +89,7 @@ export default function RootLayout({
 
                 {/* Header Globale (Logo solo su mobile, Desktop lo ha in sidebar) */}
                 <header className="ios-header md:hidden">
-                  <div className="header-title">Gestionale Facile</div>
+                  <div className="header-title">LexTax</div>
                   <div className="auth-container">
                     <UserButton afterSignOutUrl="/" />
                   </div>

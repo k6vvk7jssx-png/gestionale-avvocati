@@ -69,7 +69,7 @@ export default function Home() {
           <div className="bg-[#007AFF] p-2 rounded-xl shadow-lg shadow-[#007AFF]/20">
             <Scale className="w-6 h-6 text-white" strokeWidth={2} />
           </div>
-          <span className="text-xl font-bold tracking-tight text-white hidden sm:block">Gestionale Facile</span>
+          <span className="text-xl font-bold tracking-tight text-white hidden sm:block">LexTax</span>
         </div>
         <div className="flex items-center gap-4">
           {/* Mobile view only standard sign_in link, using NextJS native or Clerk native routing */}
@@ -107,7 +107,7 @@ export default function Home() {
             className="text-5xl md:text-6xl lg:text-[4.5rem] font-extrabold tracking-tight leading-[1.1] text-white mb-6"
           >
             Il tuo cloud merita di più. <br />
-            Passa a <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#007AFF] to-[#00bfff]">Gestionale Facile</span>.
+            Passa a <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#007AFF] to-[#00bfff]">LexTax</span>.
           </motion.h1>
 
           <motion.p
@@ -336,7 +336,7 @@ export default function Home() {
         <div className="max-w-6xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-6">
           <div className="flex items-center gap-3 opacity-50">
             <Scale className="w-6 h-6 text-white" />
-            <span className="text-xl font-bold tracking-tight text-white">Gestionale Facile</span>
+            <span className="text-xl font-bold tracking-tight text-white">LexTax</span>
           </div>
 
           <div className="flex gap-8 text-sm text-slate-500 font-medium">
@@ -348,7 +348,7 @@ export default function Home() {
           </div>
         </div>
         <div className="max-w-6xl mx-auto mt-8 text-xs text-slate-600 font-medium text-center sm:text-left">
-          &copy; {new Date().getFullYear()} Gestionale Facile Ltd. Nessun dato OCR o di fatturazione viene utilizzato per fini pubblicitari.
+          &copy; {new Date().getFullYear()} LexTax Ltd. Nessun dato OCR o di fatturazione viene utilizzato per fini pubblicitari.
         </div>
       </footer>
 
