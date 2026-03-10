@@ -31,6 +31,7 @@ export default function AggiungiSpesa() {
 
     const [amount, setAmount] = useState<string>("0");
     const [selectedCategory, setSelectedCategory] = useState<string>("Cancelleria");
+    const [description, setDescription] = useState<string>("");
     const [isSuccess, setIsSuccess] = useState(false);
 
     const handleKeyPress = (key: string) => {
@@ -71,13 +72,14 @@ export default function AggiungiSpesa() {
         addExpense({
             amount: parsedAmount,
             category: selectedCategory,
-            description: "" // Fast mode omits description
+            description: description.trim()
         });
 
         setIsSuccess(true);
         setTimeout(() => {
             setIsSuccess(false);
             setAmount("0");
+            setDescription("");
             router.push("/dashboard");
         }, 800);
     };
@@ -158,8 +160,36 @@ export default function AggiungiSpesa() {
                             <div className="absolute right-0 top-0 bottom-4 w-8 bg-gradient-to-l from-black to-transparent pointer-events-none"></div>
                         </div>
 
-                        {/* 2. TASTIERINO NUMERICO CUSTOM (GLASSMORPHISM) */}
-                        <div className="grid grid-cols-3 gap-3 mb-6">
+                        {/* DESCRIZIONE (Opzionale) */}
+                        <div className="w-full mb-6">
+                            <input
+                                type="text"
+                                placeholder="Aggiungi una descrizione (opzionale)..."
+                                value={description}
+                                onChange={(e) => setDescription(e.target.value)}
+                                className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-4 text-white placeholder-white/40 focus:outline-none focus:border-[#007AFF]/50 transition-colors"
+                            />
+                        </div>
+
+                        {/* INPUT NATIVO PER DESKTOP (nascosto su mobile) */}
+                        <div className="hidden md:block w-full mb-6">
+                            <div className="text-white/50 text-xs mb-2 uppercase tracking-wider font-bold">Importo Manuale da Tastiera</div>
+                            <div className="relative">
+                                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-2xl text-white/50">€</span>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    value={amount === "0" ? "" : amount.replace(',', '.')}
+                                    onChange={(e) => setAmount(e.target.value.replace('.', ','))}
+                                    placeholder="0.00"
+                                    className="w-full bg-white/5 border border-white/10 rounded-2xl pl-12 pr-4 py-4 text-2xl text-white font-bold focus:outline-none focus:border-[#007AFF]/50 transition-colors"
+                                />
+                            </div>
+                        </div>
+
+                        {/* 2. TASTIERINO NUMERICO CUSTOM (GLASSMORPHISM) - VISIBILE SOLO SU MOBILE */}
+                        <div className="grid grid-cols-3 gap-3 mb-6 md:hidden">
                             {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((num) => (
                                 <motion.button
                                     key={num}
