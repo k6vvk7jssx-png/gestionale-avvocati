@@ -5,8 +5,9 @@ import { ArcElement, Chart as ChartJS, Legend, Tooltip } from "chart.js";
 import { Pie } from "react-chartjs-2";
 import { useUser, useSession } from "@clerk/nextjs";
 import { createClient } from "@supabase/supabase-js";
-import { CheckCircle2, XCircle } from "lucide-react";
+import { CheckCircle2, XCircle, Trash2 } from "lucide-react";
 import ExportCommercialistaButton from "@/components/ExportCommercialistaButton";
+import { useExpenseContext } from "@/context/ExpenseContext";
 
 ChartJS.register(ArcElement, Tooltip, Legend);
 
@@ -37,6 +38,28 @@ export default function Dashboard() {
   const { isLoaded, isSignedIn, user } = useUser();
   const { session } = useSession();
   const [selectedCategory, setSelectedCategory] = useState<{ nome: string, totale: number, icona: string } | null>(null);
+
+  // Global State (Zustand/Context come richiesto)
+  const { regime: ctxRegime, expenses: ctxExpenses, removeExpense } = useExpenseContext();
+
+  // Helper per raggruppare spese in tempo reale
+  const categorieContextList = [
+    { nome: "Alimentari", icona: "🛒" },
+    { nome: "Ristoranti", icona: "🍽️" },
+    { nome: "Salute", icona: "💊" },
+    { nome: "Cancelleria", icona: "📎" },
+    { nome: "Software/Abbonamenti", icona: "💻" },
+    { nome: "Auto", icona: "🚗" },
+    { nome: "Bollette/Utenze", icona: "🔌" },
+    { nome: "Corsi di Formazione", icona: "🎓" },
+    { nome: "Altro", icona: "📦" },
+  ];
+
+  const ctxGrouped = categorieContextList.map(cat => {
+    const transazioniCat = ctxExpenses.filter(e => e.category === cat.nome);
+    const totale = transazioniCat.reduce((acc, curr) => acc + curr.amount, 0);
+    return { ...cat, totale, transazioni: transazioniCat };
+  }).filter(c => c.totale > 0 || c.transazioni.length > 0);
 
   const getSupabase = useCallback(() => {
     return createClient(supabaseUrl, supabaseKey, {
@@ -445,34 +468,44 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Grid Inferiore: Categorie di Spesa */}
+      {/* Grid Inferiore: Categorie di Spesa (GLOBAL STATE CONTEXT) */}
       <div className="mt-8 mb-4 flex justify-between items-end">
         <div>
-          <h2 style={{ margin: 0 }}>Spese Settoriali Mensili</h2>
-          <p style={{ fontSize: "0.9rem", opacity: 0.7, margin: 0 }}>Dal 1° del Mese</p>
+          <h2 style={{ margin: 0, display: "flex", alignItems: "center", gap: "8px" }}>
+            Spese In Tempo Reale <span className="bg-blue-500/20 text-blue-500 text-xs px-2 py-1 rounded-full">{ctxRegime}</span>
+          </h2>
+          <p style={{ fontSize: "0.9rem", opacity: 0.7, margin: 0 }}>
+            {ctxRegime === "forfettario" ? "⚠️ Statistiche visive (Non sottratte ai ricavi)" : "Deducibili dall'imponibile"}
+          </p>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
-        {categorieSpesa.map((cat, idx) => (
-          <div
-            key={idx}
-            className="ios-card hover:bg-white/5 transition-colors"
-            style={{ padding: "1.25rem", cursor: "pointer", display: "flex", flexDirection: "column", justifyContent: "space-between" }}
-            onClick={() => setSelectedCategory(cat)}
-          >
-            <div style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>{cat.icona}</div>
-            <div style={{ fontSize: "1rem", fontWeight: "600", color: "var(--foreground)" }}>{cat.nome}</div>
-            <div style={{ fontSize: "1.1rem", opacity: 0.8, color: cat.totale > 0 ? "var(--destructive)" : "inherit" }}>
-              €{cat.totale.toFixed(2)}
+      {ctxGrouped.length === 0 ? (
+        <div className="text-center p-8 ios-card border border-dashed border-gray-500 opacity-60">
+          Nessuna spesa inserita nel simulatore globale. Usa il tasto + in basso per aggiungere spese.
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
+          {ctxGrouped.map((cat, idx) => (
+            <div
+              key={idx}
+              className="ios-card hover:bg-white/5 transition-colors"
+              style={{ padding: "1.25rem", cursor: "pointer", display: "flex", flexDirection: "column", justifyContent: "space-between" }}
+              onClick={() => setSelectedCategory(cat)}
+            >
+              <div style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>{cat.icona}</div>
+              <div style={{ fontSize: "1rem", fontWeight: "600", color: "var(--foreground)" }}>{cat.nome}</div>
+              <div style={{ fontSize: "1.1rem", opacity: 0.8, color: cat.totale > 0 ? "var(--destructive)" : "inherit" }}>
+                €{cat.totale.toFixed(2)}
+              </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
 
-      {/* Bottom Sheet Modale */}
+      {/* Bottom Sheet Modale Spese Context */}
       {selectedCategory && (
-        <div className="bottom-sheet-overlay" onClick={() => setSelectedCategory(null)}>
+        <div className="bottom-sheet-overlay" onClick={() => setSelectedCategory(null)} style={{ zIndex: 1000 }}>
           <div className="bottom-sheet" onClick={(e) => e.stopPropagation()}>
             <div className="bottom-sheet-handle"></div>
             <button className="bottom-sheet-close" onClick={() => setSelectedCategory(null)}>&times;</button>
@@ -481,29 +514,48 @@ export default function Dashboard() {
               <div style={{ fontSize: "4rem", marginBottom: "1rem" }}>{selectedCategory.icona}</div>
               <h2>{selectedCategory.nome}</h2>
               <p style={{ fontSize: "1.5rem", fontWeight: "bold", color: "var(--primary)" }}>
-                Totale Mese: €{selectedCategory.totale.toFixed(2)}
+                Totale Categoria: €{selectedCategory.totale.toFixed(2)}
               </p>
             </div>
 
             <div style={{ padding: "0 1rem", maxHeight: "40vh", overflowY: "auto" }}>
-              {transazioniDellaCategoria.length === 0 ? (
+              {/* @ts-ignore */}
+              {selectedCategory.transazioni?.length === 0 ? (
                 <div style={{ textAlign: "center", opacity: 0.5, padding: "2rem" }}>
-                  Nessuna transazione per questa categoria.
+                  Nessuna transazione in questa categoria.
                 </div>
               ) : (
-                transazioniDellaCategoria.map((t) => (
-                  <div key={t.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: "1px solid var(--border)" }}>
+                /* @ts-ignore */
+                selectedCategory.transazioni?.map((t: any) => (
+                  <div key={t.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0", borderBottom: "1px solid var(--border)" }}>
                     <div style={{ textAlign: "left" }}>
-                      <div style={{ fontWeight: "600" }}>{t.descrizione || t.categoria}</div>
-                      <div style={{ fontSize: "0.8rem", opacity: 0.6 }}>{t.data_transazione}</div>
+                      <div style={{ fontWeight: "600", color: "var(--foreground)", fontSize: "1rem" }}>{t.description || t.category}</div>
+                      <div style={{ fontSize: "0.8rem", opacity: 0.5 }}>{new Date(t.date).toLocaleDateString()}</div>
                     </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                      <span style={{ fontWeight: "bold", color: "var(--destructive)" }}>€{Number(t.importo).toFixed(2)}</span>
+                    <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
+                      <span style={{ fontWeight: "bold", color: "var(--destructive)", fontSize: "1.1rem" }}>€{Number(t.amount).toFixed(2)}</span>
                       <button
-                        onClick={(e) => handleDeleteTransazione(t.id, e)}
-                        style={{ background: "none", border: "none", color: "var(--destructive)", fontSize: "1.2rem", cursor: "pointer" }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          removeExpense(t.id);
+                          // Aggiorna istantaneamente il modale o lo chiudi se vuoto
+                          // @ts-ignore
+                          const prevList = selectedCategory.transazioni;
+                          if (prevList.length === 1) setSelectedCategory(null);
+                          else {
+                            const newList = prevList.filter((tr: any) => tr.id !== t.id);
+                            setSelectedCategory({
+                              ...selectedCategory,
+                              transazioni: newList,
+                              totale: newList.reduce((acc: number, curr: any) => acc + curr.amount, 0)
+                            } as any);
+                          }
+                        }}
+                        style={{ background: "none", border: "none", color: "var(--destructive)", padding: "4px", cursor: "pointer", opacity: 0.8, transition: "opacity 0.2s" }}
+                        onMouseEnter={(e) => e.currentTarget.style.opacity = "1"}
+                        onMouseLeave={(e) => e.currentTarget.style.opacity = "0.8"}
                       >
-                        🗑️
+                        <Trash2 className="w-5 h-5" />
                       </button>
                     </div>
                   </div>
@@ -514,7 +566,7 @@ export default function Dashboard() {
             <div style={{ textAlign: "center" }}>
               <button
                 className="ios-btn-large"
-                style={{ marginTop: "2rem" }}
+                style={{ marginTop: "2rem", width: "100%" }}
                 onClick={() => setSelectedCategory(null)}
               >
                 Chiudi

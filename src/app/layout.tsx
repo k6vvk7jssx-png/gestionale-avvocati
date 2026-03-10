@@ -3,6 +3,7 @@ import Link from 'next/link';
 import MainMenu from './MainMenu';
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { ExpenseProvider } from "@/context/ExpenseContext";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -83,26 +84,28 @@ export default function RootLayout({
           </SignedOut>
 
           <SignedIn>
-            <div className="app-container">
+            <ExpenseProvider>
+              <div className="app-container">
 
-              {/* Header Globale (Logo solo su mobile, Desktop lo ha in sidebar) */}
-              <header className="ios-header md:hidden">
-                <div className="header-title">Gestionale Facile</div>
-                <div className="auth-container">
-                  <UserButton afterSignOutUrl="/" />
-                </div>
-              </header>
+                {/* Header Globale (Logo solo su mobile, Desktop lo ha in sidebar) */}
+                <header className="ios-header md:hidden">
+                  <div className="header-title">Gestionale Facile</div>
+                  <div className="auth-container">
+                    <UserButton afterSignOutUrl="/" />
+                  </div>
+                </header>
 
-              <MainMenu />
+                <MainMenu />
 
-              {/* Main Area: pb-24 per la bottom nav mobile, pl-64 per la sidebar su md */}
-              <main className="main-content pb-24 md:pb-8 md:pl-64 w-full">
-                <div className="max-w-7xl mx-auto w-full h-full">
-                  {children}
-                </div>
-              </main>
+                {/* Main Area: pb-24 per la bottom nav mobile, pl-64 per la sidebar su md */}
+                <main className="main-content pb-24 md:pb-8 md:pl-64 w-full">
+                  <div className="max-w-7xl mx-auto w-full h-full">
+                    {children}
+                  </div>
+                </main>
 
-            </div>
+              </div>
+            </ExpenseProvider>
           </SignedIn>
         </body>
       </html>
