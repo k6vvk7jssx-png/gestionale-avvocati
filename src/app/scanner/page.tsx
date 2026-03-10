@@ -1,502 +1,175 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useUser, useSession } from "@clerk/nextjs";
-import { createClient } from "@supabase/supabase-js";
+import { motion } from "framer-motion";
+import { Delete } from "lucide-react";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+// Togliamo le dipendenze inutilizzate Supabase/Clerk per ora o le lasciamo pronte ma non attive
+// import { useUser, useSession } from "@clerk/nextjs";
+// import { createClient } from "@supabase/supabase-js";
 
-export default function ScannerScontrini() {
-    const { isLoaded, isSignedIn, user } = useUser();
-    const { session } = useSession();
+const CATEGORIES = [
+    { id: "Cancelleria", label: "Cancelleria", badge: "100%" },
+    { id: "Ristoranti", label: "Ristoranti", badge: "75%" },
+    { id: "Utenze", label: "Utenze/Tel", badge: "80%" },
+    { id: "Auto", label: "Auto", badge: "20%" },
+    { id: "Altro", label: "Altro", badge: "" },
+];
+
+export default function FastExpenseEntry() {
     const router = useRouter();
-    const fileInputRef = useRef<HTMLInputElement>(null);
+    // const { isLoaded, isSignedIn, user } = useUser();
+    // const { session } = useSession();
 
-    const parseImporto = (val: string | number) => {
-        if (!val) return 0;
-        if (typeof val === 'number') return val;
-        // Se l'utente scrive 1.500,50 rimuove i punti e la virgola diventa punto
-        const cleaned = val.replace(/\./g, '').replace(',', '.');
-        const parsed = parseFloat(cleaned);
-        return isNaN(parsed) ? 0 : parsed;
-    };
+    const [amount, setAmount] = useState<string>("0");
+    const [selectedCategory, setSelectedCategory] = useState<string>("Cancelleria");
 
-    const getSupabase = () => {
-        return createClient(supabaseUrl, supabaseKey, {
-            global: {
-                fetch: async (url, options = {}) => {
-                    let clerkToken;
-                    try {
-                        clerkToken = await session?.getToken({ template: 'supabase' });
-                    } catch {
-                        console.warn("Nessun template 'supabase' trovato in Clerk, uso token default");
-                        clerkToken = await session?.getToken();
-                    }
-                    const headers = new Headers(options?.headers);
-                    if (clerkToken) headers.set('Authorization', `Bearer ${clerkToken}`);
-                    return fetch(url, { ...options, headers, cache: 'no-store' });
-                },
-            },
+    const handleKeyPress = (key: string) => {
+        setAmount((prev) => {
+            if (key === "BACKSPACE") {
+                if (prev.length <= 1) return "0";
+                return prev.slice(0, -1);
+            }
+
+            if (key === ",") {
+                if (prev.includes(",")) return prev; // Solo una virgola permessa
+                return prev + ",";
+            }
+
+            // Se è superato un limite logico (es. 2 decimali) blocca
+            if (prev.includes(",")) {
+                const dec = prev.split(",")[1];
+                if (dec && dec.length >= 2) return prev;
+            }
+
+            if (prev === "0") {
+                if (key === "0") return "0";
+                return key;
+            }
+
+            return prev + key;
         });
     };
 
-    const [file, setFile] = useState<File | null>(null);
-    const [preview, setPreview] = useState<string | null>(null);
-    const [isScanning, setIsScanning] = useState(false);
-    const [scannedData, setScannedData] = useState<{
-        importo: number;
-        categoria: string;
-        testoEstratto: string;
-    } | null>(null);
-
-    // Stato form manuale
-    const [spesaManuale, setSpesaManuale] = useState({ importo: "", categoria: "Altro", descrizione: "" });
-    const [isSaving, setIsSaving] = useState(false);
-
-    const handleCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files && e.target.files[0]) {
-            const selectedFile = e.target.files[0];
-            setFile(selectedFile);
-
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                setPreview(reader.result as string);
-            };
-            reader.readAsDataURL(selectedFile);
-            setScannedData(null);
-        }
-    };
-
-    const scansionaImmagine = async () => {
-        if (!file) return;
-        setIsScanning(true);
-
-        const base64Data = await new Promise<string>((resolve) => {
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                const img = new window.Image();
-                img.onload = () => {
-                    let MAX_DIM = 1000;
-                    let quality = 0.7;
-                    let dataUrl = "";
-                    let pass = 0;
-
-                    do {
-                        let width = img.width;
-                        let height = img.height;
-
-                        if (width > height) {
-                            if (width > MAX_DIM) {
-                                height = Math.round((height * MAX_DIM) / width);
-                                width = MAX_DIM;
-                            }
-                        } else {
-                            if (height > MAX_DIM) {
-                                width = Math.round((width * MAX_DIM) / height);
-                                height = MAX_DIM;
-                            }
-                        }
-
-                        const canvas = document.createElement('canvas');
-                        canvas.width = width;
-                        canvas.height = height;
-                        const ctx = canvas.getContext('2d');
-
-                        if (ctx) {
-                            ctx.fillStyle = '#FFFFFF';
-                            ctx.fillRect(0, 0, width, height);
-                            ctx.drawImage(img, 0, 0, width, height);
-                        }
-
-                        dataUrl = canvas.toDataURL('image/jpeg', quality);
-                        MAX_DIM -= 200;
-                        quality -= 0.15;
-                        pass++;
-
-                    } while (dataUrl.length > 1300000 && pass < 5);
-
-                    resolve(dataUrl);
-                };
-                img.src = event.target?.result as string;
-            };
-            reader.readAsDataURL(file);
-        });
-
-        try {
-            // Utilizzo di Tesseract OCR locale via client-browser (no api payload a pagamento)
-            const Tesseract = await import('tesseract.js');
-            const result = await Tesseract.recognize(base64Data, 'ita', {
-                logger: m => console.log(m)
-            });
-
-            const text = result.data.text;
-            const testoLows = text.toLowerCase();
-
-            // Estrazione Importo
-            let importoEstratto = 0;
-            const regexTotale = /(?:totale|importo|pagato|eur|euro|€)\s*[:.-]?\s*(\d{1,4}[.,]\d{2})/ig;
-            let match;
-            const massimi = [];
-
-            while ((match = regexTotale.exec(testoLows)) !== null) {
-                const pulito = match[1].replace(',', '.');
-                const num = parseFloat(pulito);
-                if (!isNaN(num)) massimi.push(num);
-            }
-
-            if (massimi.length > 0) {
-                importoEstratto = Math.max(...massimi);
-            } else {
-                const regexNumeriValuta = /(\d{1,4}[.,]\d{2})/g;
-                const matchesArr = Array.from(testoLows.matchAll(regexNumeriValuta)) as RegExpMatchArray[];
-                if (matchesArr.length > 0) {
-                    const ultimoElemento = matchesArr[matchesArr.length - 1];
-                    if (ultimoElemento && ultimoElemento[1]) {
-                        const lastMatch = ultimoElemento[1].replace(',', '.');
-                        importoEstratto = parseFloat(lastMatch);
-                    }
-                }
-            }
-
-            // Categorizzazione
-            let categoriaSuggerita = "Altro";
-            if (testoLows.match(/ristorant|pizzer|trattoria|bar |osteria|caff/)) categoriaSuggerita = "Ristoranti";
-            else if (testoLows.match(/farmacia|medic|visita|sanit|dott.ssa|dott./)) categoriaSuggerita = "Salute";
-            else if (testoLows.match(/carburant|benzi|eni|q8|agip|tamoil|ip |diesel|verde|gasolio/)) categoriaSuggerita = "Carburante";
-            else if (testoLows.match(/conad|coop|esselunga|pam|lidl|eurospin|despar|supermercat/)) categoriaSuggerita = "Alimenti";
-            else if (testoLows.match(/treno|italo|trenitalia|taxi|bus|metropolitana/)) categoriaSuggerita = "Auto/Trasporti";
-            else if (testoLows.match(/cartoleria|buffetti|carta|penna/)) categoriaSuggerita = "Cancelleria";
-            else if (testoLows.match(/amazon|software|abbonament/)) categoriaSuggerita = "Software";
-
-            setScannedData({
-                importo: importoEstratto,
-                categoria: categoriaSuggerita,
-                testoEstratto: text.substring(0, 300) + (text.length > 300 ? "..." : "")
-            });
-
-        } catch (err) {
-            console.error(err);
-            alert("Errore nella scansione locale con Tesseract: " + (err as Error).message);
-        } finally {
-            setIsScanning(false);
-        }
-    };
-
-    const salvaSpesaManuale = async () => {
-        if (!spesaManuale.importo) {
-            alert("Inserisci l'importo della spesa."); return;
+    const handleSave = async () => {
+        if (amount === "0" || amount === "0,") {
+            alert("Inserisci un importo valido.");
+            return;
         }
 
-        setIsSaving(true);
-        try {
-            const supabase = getSupabase();
-            const now = new Date();
-            const data_transazione = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+        // Formatta il numero in Float per logiche future
+        // const parsedAmount = parseFloat(amount.replace(',', '.'));
 
-            const importoCorretto = parseImporto(spesaManuale.importo);
-            const regimeGenerale = localStorage.getItem("regime_fiscale_generale");
-            let percentualeDeducibilita = 0;
-            if (regimeGenerale === "ordinario") {
-                const { getDeductibilityPercentage } = await import('@/lib/deductibility');
-                percentualeDeducibilita = getDeductibilityPercentage(spesaManuale.categoria);
-            }
-            const importoDeducibile = importoCorretto * percentualeDeducibilita;
+        console.log("Salvataggio Spesa Rapida:", { amount, category: selectedCategory });
+        alert(`Spesa di €${amount} in ${selectedCategory} registrata (Logica DB disattivata temporaneamente per UI Test).`);
 
-            const { error } = await supabase.from('transazioni').insert({
-                user_id: user?.id,
-                tipo: 'uscita',
-                importo: importoCorretto,
-                categoria: spesaManuale.categoria,
-                descrizione: spesaManuale.descrizione,
-                data_transazione: data_transazione,
-                percentuale_deducibilita: percentualeDeducibilita,
-                importo_deducibile: importoDeducibile
-            });
-
-            if (error) throw error;
-
-            const deducMsg = regimeGenerale === "ordinario" ? ` (Deducibile al ${percentualeDeducibilita * 100}%)` : ` (Nessuna deduzione in Forfettario)`;
-            alert(`Spesa registrata!${deducMsg}`);
-            setSpesaManuale({ importo: "", categoria: "Altro", descrizione: "" });
-            router.refresh();
-            router.push('/dashboard');
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        } catch (err: any) {
-            console.error(err);
-            alert("Si è verificato un errore nel salvataggio. Controlla i permessi o le policy: " + err.message);
-        } finally {
-            setIsSaving(false);
-        }
+        // Reset
+        setAmount("0");
+        router.refresh();
+        router.push("/dashboard");
     };
-
-    const salvaScanner = async () => {
-        if (!scannedData) return;
-        setIsSaving(true);
-        try {
-            const supabase = getSupabase();
-            const now = new Date();
-            const data_transazione = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-
-            const importoCorretto = parseImporto(scannedData.importo);
-            const regimeGenerale = localStorage.getItem("regime_fiscale_generale");
-            let percentualeDeducibilita = 0;
-            if (regimeGenerale === "ordinario") {
-                const { getDeductibilityPercentage } = await import('@/lib/deductibility');
-                percentualeDeducibilita = getDeductibilityPercentage(scannedData.categoria);
-            }
-            const importoDeducibile = importoCorretto * percentualeDeducibilita;
-
-            const { error } = await supabase.from('transazioni').insert({
-                user_id: user?.id,
-                tipo: 'uscita',
-                importo: importoCorretto,
-                categoria: scannedData.categoria,
-                descrizione: "Auto-Scansione AI (Locale)",
-                data_transazione: data_transazione,
-                percentuale_deducibilita: percentualeDeducibilita,
-                importo_deducibile: importoDeducibile
-            });
-
-            if (error) throw error;
-
-            const deducMsg = regimeGenerale === "ordinario" ? ` (Deducibile al ${percentualeDeducibilita * 100}%)` : ` (Nessuna deduzione in Forfettario)`;
-            alert(`Scontrino AI registrato!${deducMsg}`);
-            setFile(null);
-            setPreview(null);
-            setScannedData(null);
-            router.refresh();
-            router.push('/dashboard');
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        } catch (err: any) {
-            console.error(err);
-            alert("Si è verificato un errore nel salvataggio scanner. " + err.message);
-        } finally {
-            setIsSaving(false);
-        }
-    };
-
-    const [mode, setMode] = useState<"scanner" | "manuale">("scanner");
-    const [regimeCorrente, setRegimeCorrente] = useState<string | null>(null);
-
-    // Carica regime utente all'avvio
-    useEffect(() => {
-        const regime = localStorage.getItem("regime_fiscale_generale");
-        setRegimeCorrente(regime);
-    }, []);
-
-    // Helper per determinare la percentuale al volo (per la UI sync)
-    // Non avvisa import() asincrono in render
-    const getPercentualeSync = (cat: string) => {
-        import('@/lib/deductibility').then(m => {
-            // Facciamo finta di farlo sync o usiamo un dizionario base se non vogliamo refetch
-        });
-        const catLow = cat.toLowerCase();
-        if (catLow.includes("cancelleria") || catLow.includes("software") || catLow.includes("formazione") || catLow.includes("lavoro")) return 1.0;
-        if (catLow.includes("ristorant")) return 0.75;
-        if (catLow.includes("auto") || catLow.includes("trasporti") || catLow.includes("carburante") || catLow.includes("viaggi")) return 0.20;
-        if (catLow.includes("uso promiscuo") || catLow.includes("telefonia") || catLow.includes("utenze")) return 0.80; // approssimazione
-        return 0.0;
-    };
-
-    // Variabili calcolate al volo per Manuale
-    const importoCorrettoManuale = parseImporto(spesaManuale.importo);
-    const percentualeAttualeManuale = getPercentualeSync(spesaManuale.categoria);
-
-    // Variabili calcolate al volo per Scanner
-    const importoCorrettoScanner = scannedData ? parseImporto(scannedData.importo) : 0;
-    const percentualeAttualeScanner = scannedData ? getPercentualeSync(scannedData.categoria) : 0;
-
-    if (!isLoaded || !isSignedIn) return null;
 
     return (
-        <div className="pb-20">
-            <h1>Aggiungi Spesa</h1>
+        <div className="min-h-screen bg-[#000000] text-white flex flex-col pb-24 items-center px-4">
 
-            <div className="ios-select-group" style={{ marginBottom: "2rem" }}>
-                <button
-                    className={`ios-segment ${mode === 'scanner' ? 'active' : ''}`}
-                    onClick={() => setMode('scanner')}
-                >
-                    📸 Spese AI
-                </button>
-                <button
-                    className={`ios-segment ${mode === 'manuale' ? 'active' : ''}`}
-                    onClick={() => setMode('manuale')}
-                >
-                    ✍️ Manuale
-                </button>
+            {/* Header Semplice */}
+            <div className="w-full max-w-md pt-6 pb-4 flex items-center justify-between">
+                <h1 className="text-xl font-medium tracking-tight text-white/90">Aggiungi Spesa</h1>
+                <span className="text-emerald-400 font-medium text-sm bg-emerald-400/10 px-3 py-1 rounded-full">
+                    Fast Mode ⚡
+                </span>
             </div>
 
-            {mode === 'scanner' ? (
-                <>
-                    <p>Scatta una foto a scontrini o fatture di spesa. L&apos;AI estrarrà l&apos;importo e proporrà una categoria.</p>
-                    <div className="ios-card" style={{ textAlign: "center" }}>
-                        {preview ? (
-                            <div style={{ marginBottom: "1.5rem" }}>
-                                <img
-                                    src={preview}
-                                    alt="Anteprima Scontrino"
-                                    style={{ maxWidth: "100%", maxHeight: "300px", borderRadius: "12px" }}
-                                />
-                            </div>
-                        ) : (
-                            <div
-                                style={{
-                                    height: "200px",
-                                    background: "var(--background)",
-                                    borderRadius: "12px",
-                                    display: "flex",
-                                    justifyContent: "center",
-                                    alignItems: "center",
-                                    marginBottom: "1.5rem",
-                                    border: "2px dashed var(--border)"
-                                }}
-                            >
-                                <span style={{ fontSize: "3rem", opacity: 0.5 }}>📸</span>
-                            </div>
-                        )}
+            <div className="w-full max-w-md flex-1 flex flex-col justify-end">
 
-                        <input
-                            type="file"
-                            accept="image/*"
-                            capture="environment" // Forza la fotocamera posteriore su iOS
-                            ref={fileInputRef}
-                            onChange={handleCapture}
-                            style={{ display: "none" }}
-                        />
-
-                        <div style={{ display: "flex", gap: "10px" }}>
-                            <button
-                                className="ios-btn-small"
-                                style={{ flex: 1, padding: "12px", background: "var(--foreground)", color: "var(--background)" }}
-                                onClick={() => fileInputRef.current?.click()}
-                            >
-                                {preview ? "Scatta di Nuovo" : "Apri Fotocamera"}
-                            </button>
-
-                            {preview && (
-                                <button
-                                    className="ios-btn-small"
-                                    style={{ flex: 1, padding: "12px" }}
-                                    onClick={scansionaImmagine}
-                                    disabled={isScanning}
-                                >
-                                    {isScanning ? "Scansione..." : "Scansiona AI"}
-                                </button>
-                            )}
-                        </div>
+                {/* 1. DISPLAY IMPORTO */}
+                <div className="flex flex-col items-end justify-center py-6 mb-2">
+                    <div className="text-white/50 text-sm mb-1 font-medium tracking-wider">Importo Totale</div>
+                    <div className="text-6xl md:text-7xl font-bold tracking-tighter text-white tabular-nums flex items-baseline">
+                        <span className="text-3xl text-white/50 mr-2 font-normal">€</span>
+                        {amount}
                     </div>
-
-                    {scannedData && (
-                        <div className="ios-card" style={{ marginTop: "1rem", animation: "slideUp 0.3s" }}>
-                            <h3 style={{ marginBottom: "1rem" }}>Risultato Scansione</h3>
-
-                            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.5rem" }}>
-                                <span style={{ opacity: 0.7 }}>Importo Estratto</span>
-                                <span style={{ fontSize: "1.2rem", fontWeight: "bold", color: "var(--destructive)" }}>
-                                    €{scannedData.importo.toFixed(2)}
-                                </span>
-                            </div>
-
-                            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "1rem" }}>
-                                <span style={{ opacity: 0.7 }}>Categoria Suggerita</span>
-                                <span style={{ fontSize: "1.1rem", fontWeight: "600", color: "var(--primary)" }}>
-                                    {scannedData.categoria}
-                                </span>
-                            </div>
-
-                            <div style={{ background: "var(--background)", padding: "10px", borderRadius: "8px", fontSize: "0.85rem", opacity: 0.8, maxHeight: "100px", overflowY: "auto", marginBottom: "1.5rem" }}>
-                                {scannedData.testoEstratto}
-                            </div>
-
-                            {/* BADGE DEDUCIBILITA' IN TEMPO REALE SCANSIONE */}
-                            {regimeCorrente === "ordinario" && importoCorrettoScanner > 0 && (
-                                <div style={{ marginBottom: "1.5rem", padding: "10px", background: "rgba(52, 199, 89, 0.1)", border: "1px solid var(--success)", borderRadius: "8px", color: "var(--success)", fontSize: "0.9rem", display: "flex", alignItems: "center", gap: "8px", animation: "slideUp 0.3s ease-out" }}>
-                                    <span style={{ fontSize: "1.2rem" }}>💡</span>
-                                    <div>
-                                        <strong>Ordinario:</strong> Importo deducibile stimato
-                                        <div style={{ fontWeight: "bold", fontSize: "1.1rem", marginTop: "4px" }}>€{(importoCorrettoScanner * percentualeAttualeScanner).toFixed(2)} ({percentualeAttualeScanner * 100}%)</div>
-                                    </div>
-                                </div>
-                            )}
-
-                            <button className="ios-btn-large" style={{ background: "var(--success)" }} onClick={salvaScanner} disabled={isSaving}>
-                                {isSaving ? "Salvataggio..." : `Conferma e Salva in ${scannedData.categoria}`}
-                            </button>
-                        </div>
-                    )}
-                </>
-            ) : (
-                <div className="ios-card" style={{ animation: "fadeIn 0.3s" }}>
-                    <h3 style={{ marginBottom: "1rem" }}>Inserimento Manuale</h3>
-
-                    <label style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.9rem", opacity: 0.7 }}>Importo (€)</label>
-                    <input
-                        type="text"
-                        inputMode="decimal"
-                        placeholder="Es. 45.50"
-                        className="ios-input"
-                        value={spesaManuale.importo}
-                        onChange={(e) => setSpesaManuale({ ...spesaManuale, importo: e.target.value })}
-                    />
-
-                    <label style={{ display: "block", marginBottom: "0.5rem", marginTop: "1rem", fontSize: "0.9rem", opacity: 0.7 }}>Categoria di Spesa</label>
-                    <select
-                        className="ios-input"
-                        style={{ appearance: "none" }}
-                        value={spesaManuale.categoria}
-                        onChange={(e) => setSpesaManuale({ ...spesaManuale, categoria: e.target.value })}
-                    >
-                        <option value="Alimenti">🛒 Alimenti</option>
-                        <option value="Ristoranti">🍽️ Ristoranti / Trasferte</option>
-                        <option value="Salute">💊 Salute</option>
-                        <option value="Lavoro">💼 Lavoro / Affitto Studio</option>
-                        <option value="Cancelleria">📎 Cancelleria</option>
-                        <option value="Software">💻 Software</option>
-                        <option value="Auto/Trasporti">🚗 Auto/Trasporti</option>
-                        <option value="Carburante">⛽ Carburante</option>
-                        <option value="Viaggi">✈️ Viaggi</option>
-                        <option value="Tasse">🏦 Tasse</option>
-                        <option value="Senza Tasse">🆓 Senza Tasse</option>
-                        <option value="Utenze">💡 Utenze Promiscue</option>
-                        <option value="Formazione">📚 Formazione</option>
-                        <option value="Abbigliamento">👔 Abbigliamento</option>
-                        <option value="Imprevisti">⚠️ Imprevisti</option>
-                        <option value="Altro">📦 Altro</option>
-                    </select>
-
-                    {/* BADGE DEDUCIBILITA' IN TEMPO REALE */}
-                    {regimeCorrente === "ordinario" && importoCorrettoManuale > 0 && (
-                        <div style={{ marginTop: "1rem", padding: "10px", background: "rgba(52, 199, 89, 0.1)", border: "1px solid var(--success)", borderRadius: "8px", color: "var(--success)", fontSize: "0.9rem", display: "flex", alignItems: "center", gap: "8px", animation: "slideUp 0.3s ease-out" }}>
-                            <span style={{ fontSize: "1.2rem" }}>💡</span>
-                            <div>
-                                <strong>Ordinario:</strong> Importo deducibile ai fini IRPEF stimato:
-                                <strong style={{ marginLeft: "4px" }}>€{(importoCorrettoManuale * percentualeAttualeManuale).toFixed(2)}</strong>
-                            </div>
-                        </div>
-                    )}
-
-                    <label style={{ display: "block", marginBottom: "0.5rem", marginTop: "1rem", fontSize: "0.9rem", opacity: 0.7 }}>Descrizione (Opzionale)</label>
-                    <input
-                        type="text"
-                        placeholder="Es. Cena di lavoro ristorante"
-                        className="ios-input"
-                        value={spesaManuale.descrizione}
-                        onChange={(e) => setSpesaManuale({ ...spesaManuale, descrizione: e.target.value })}
-                    />
-
-                    <button
-                        className="ios-btn-large"
-                        style={{ marginTop: "1.5rem" }}
-                        onClick={salvaSpesaManuale}
-                        disabled={isSaving}
-                    >
-                        {isSaving ? "Salvataggio..." : "Aggiungi Spesa"}
-                    </button>
                 </div>
-            )}
+
+                {/* 3. SELETTORE CATEGORIA RAPIDO (Pillole / Badge) */}
+                <div className="w-full mb-6 relative">
+                    <div className="flex overflow-x-auto gap-3 pb-4 snap-x hide-scrollbar" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                        {CATEGORIES.map((cat) => {
+                            const isActive = selectedCategory === cat.id;
+                            return (
+                                <button
+                                    key={cat.id}
+                                    onClick={() => setSelectedCategory(cat.id)}
+                                    className={`snap-start whitespace-nowrap px-4 py-3 rounded-2xl border transition-all duration-200 flex flex-col items-center justify-center min-w-[100px] ${isActive
+                                            ? "bg-[#007AFF]/20 border-[#007AFF] text-white"
+                                            : "bg-white/5 border-white/5 text-white/60 hover:bg-white/10"
+                                        }`}
+                                >
+                                    <span className={`font-semibold text-sm ${isActive ? "text-[#007AFF]" : ""}`}>
+                                        {cat.label}
+                                    </span>
+                                    {cat.badge && (
+                                        <span className={`text-[10px] uppercase tracking-wider font-bold mt-1 ${isActive ? "text-[#007AFF]/80" : "text-white/30"}`}>
+                                            Ded. {cat.badge}
+                                        </span>
+                                    )}
+                                </button>
+                            );
+                        })}
+                    </div>
+                    {/* Sfumatura laterale per indicare lo scroll */}
+                    <div className="absolute right-0 top-0 bottom-4 w-8 bg-gradient-to-l from-black to-transparent pointer-events-none"></div>
+                </div>
+
+                {/* 2. TASTIERINO NUMERICO CUSTOM (GLASSMORPHISM) */}
+                <div className="grid grid-cols-3 gap-3 mb-6">
+                    {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((num) => (
+                        <motion.button
+                            key={num}
+                            whileTap={{ scale: 0.92, backgroundColor: "rgba(255,255,255,0.2)" }}
+                            onClick={() => handleKeyPress(num)}
+                            className="bg-white/10 backdrop-blur-md rounded-2xl h-16 text-3xl font-medium text-white flex items-center justify-center border border-white/5 shadow-sm"
+                        >
+                            {num}
+                        </motion.button>
+                    ))}
+
+                    <motion.button
+                        whileTap={{ scale: 0.92, backgroundColor: "rgba(255,255,255,0.2)" }}
+                        onClick={() => handleKeyPress(",")}
+                        className="bg-white/5 backdrop-blur-md rounded-2xl h-16 text-3xl font-medium text-white/70 flex items-center justify-center border border-white/5"
+                    >
+                        ,
+                    </motion.button>
+
+                    <motion.button
+                        whileTap={{ scale: 0.92, backgroundColor: "rgba(255,255,255,0.2)" }}
+                        onClick={() => handleKeyPress("0")}
+                        className="bg-white/10 backdrop-blur-md rounded-2xl h-16 text-3xl font-medium text-white flex items-center justify-center border border-white/5 shadow-sm"
+                    >
+                        0
+                    </motion.button>
+
+                    <motion.button
+                        whileTap={{ scale: 0.92, backgroundColor: "rgba(255,255,255,0.2)" }}
+                        onClick={() => handleKeyPress("BACKSPACE")}
+                        className="bg-white/5 backdrop-blur-md rounded-2xl h-16 text-2xl font-medium text-white/70 flex items-center justify-center border border-white/5"
+                    >
+                        <Delete className="w-8 h-8 opacity-80" />
+                    </motion.button>
+                </div>
+
+                {/* 4. BOTTONE SALVA STICKY */}
+                <motion.button
+                    whileTap={{ scale: 0.97 }}
+                    onClick={handleSave}
+                    className="w-full bg-[#007AFF] hover:bg-[#007AFF]/90 text-white font-bold text-lg py-5 rounded-2xl shadow-[0_0_20px_rgba(0,122,255,0.4)] transition-all flex items-center justify-center gap-2"
+                >
+                    Registra Spesa
+                </motion.button>
+
+            </div>
         </div>
     );
 }
