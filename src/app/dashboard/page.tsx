@@ -6,6 +6,7 @@ import { Pie } from "react-chartjs-2";
 import { useUser, useSession } from "@clerk/nextjs";
 import { createClient } from "@supabase/supabase-js";
 import { CheckCircle2, XCircle } from "lucide-react";
+import ExportCommercialistaButton from "@/components/ExportCommercialistaButton";
 
 ChartJS.register(ArcElement, Tooltip, Legend);
 
@@ -543,6 +544,11 @@ export default function Dashboard() {
           </div>
         </div>
       )}
+
+      {/* Bottone Export Excel Commercialista */}
+      <div style={{ marginTop: "3rem", marginBottom: "1rem" }}>
+        <ExportCommercialistaButton />
+      </div>
 
       {/* Footer Legale Interno (Beta) */}
       <div style={{ marginTop: "4rem", paddingTop: "2rem", borderTop: "1px solid var(--border)", textAlign: "center" }}>
