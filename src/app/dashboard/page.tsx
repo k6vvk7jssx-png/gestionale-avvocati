@@ -66,7 +66,7 @@ export default function Dashboard() {
     const transazioniCat = ctxExpenses.filter(e => e.category === cat.nome);
     const totale = transazioniCat.reduce((acc, curr) => acc + curr.amount, 0);
     return { ...cat, totale, transazioni: transazioniCat };
-  }).filter(c => c.totale > 0 || c.transazioni.length > 0);
+  });
 
   const getSupabase = useCallback(() => {
     return createClient(supabaseUrl, supabaseKey, {
@@ -487,28 +487,24 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {ctxGrouped.length === 0 ? (
-        <div className="text-center p-8 ios-card border border-dashed border-gray-500 opacity-60">
-          Nessuna spesa inserita nel simulatore globale. Usa il tasto + in basso per aggiungere spese.
-        </div>
-      ) : (
-        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
-          {ctxGrouped.map((cat, idx) => (
-            <div
-              key={idx}
-              className="ios-card hover:bg-white/5 transition-colors"
-              style={{ padding: "1.25rem", cursor: "pointer", display: "flex", flexDirection: "column", justifyContent: "space-between" }}
-              onClick={() => setSelectedCategory(cat)}
-            >
-              <div style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>{cat.icona}</div>
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
+        {ctxGrouped.map((cat, idx) => (
+          <div
+            key={idx}
+            className="ios-card hover:bg-white/5 transition-colors flex flex-col justify-between"
+            style={{ padding: "1.25rem", cursor: "pointer", height: "120px" }}
+            onClick={() => setSelectedCategory(cat)}
+          >
+            <div style={{ fontSize: "2rem", marginBottom: "0.25rem" }}>{cat.icona}</div>
+            <div>
               <div style={{ fontSize: "1rem", fontWeight: "600", color: "var(--foreground)" }}>{cat.nome}</div>
               <div style={{ fontSize: "1.1rem", opacity: 0.8, color: cat.totale > 0 ? "var(--destructive)" : "inherit" }}>
                 €{cat.totale.toFixed(2)}
               </div>
             </div>
-          ))}
-        </div>
-      )}
+          </div>
+        ))}
+      </div>
 
       {/* Bottom Sheet Modale Spese Context */}
       {selectedCategory && (
