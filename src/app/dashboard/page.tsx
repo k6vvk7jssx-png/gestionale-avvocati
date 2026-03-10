@@ -351,50 +351,78 @@ export default function Dashboard() {
               📘
             </button>
           </div>
-          <p style={{ color: "var(--foreground)", opacity: 0.6, fontSize: "0.9rem", marginTop: "-4px" }}>Mese Corrente</p>
+          <p style={{ color: "var(--foreground)", opacity: 0.6, fontSize: "0.9rem", marginTop: "-4px" }}>
+            Mese Corrente
+          </p>
         </div>
 
         {/* Torta Annuale (Piccola in alto a dx - La manteniamo fissa come design target per ora) */}
-        <div style={{ width: "80px", height: "80px" }}>
+        <div className="md:hidden" style={{ width: "80px", height: "80px" }}>
           <Pie data={dataAnnuale} options={{ plugins: { legend: { display: false } } }} />
         </div>
       </div>
 
-      {/* Torta Mensile (Grande Centrale) */}
-      <div className="ios-card" style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-        <h3>Bilancio Mensile</h3>
+      {/* Grid Superiore: Torte e Info Principali */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
 
-        <div className="chart-container-large" style={{ margin: "1rem 0" }}>
-          <Pie
-            data={dataMensile}
-            options={{
-              responsive: true,
-              maintainAspectRatio: true,
-              plugins: {
-                legend: { position: "bottom", labels: { font: { size: 14 } } }
-              }
-            }}
-          />
+        {/* Torta Mensile (Grande Centrale) */}
+        <div className="ios-card md:col-span-2 lg:col-span-1" style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+          <h3>Bilancio Mensile</h3>
+
+          <div className="chart-container-large" style={{ margin: "1rem 0" }}>
+            <Pie
+              data={dataMensile}
+              options={{
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                  legend: { position: "bottom", labels: { font: { size: 14 } } }
+                }
+              }}
+            />
+          </div>
+
+          <div className="flex-row-between" style={{ width: "100%", marginTop: "1rem", flexWrap: "wrap", justifyContent: "space-around" }}>
+            <div style={{ textAlign: "center", marginBottom: "0.5rem" }}>
+              <span style={{ fontSize: "0.8rem", opacity: 0.7 }}>In Tasca</span>
+              <div style={{ fontSize: "1.2rem", fontWeight: "bold", color: "var(--success)" }}>€{nettoMensile.toFixed(2)}</div>
+            </div>
+            <div style={{ textAlign: "center", marginBottom: "0.5rem" }}>
+              <span style={{ fontSize: "0.8rem", opacity: 0.7 }}>Lordo Inc.</span>
+              <div style={{ fontSize: "1.2rem", fontWeight: "bold", color: "var(--foreground)" }}>€{entrateMensili.toFixed(2)}</div>
+            </div>
+            <div style={{ textAlign: "center", marginBottom: "0.5rem" }}>
+              <span style={{ fontSize: "0.8rem", opacity: 0.7 }}>Spese Voc.</span>
+              <div style={{ fontSize: "1.2rem", fontWeight: "bold", color: "var(--destructive)" }}>€{usciteMensili.toFixed(2)}</div>
+            </div>
+          </div>
+          <div style={{ width: "100%", textAlign: "center", marginTop: "0.5rem", borderTop: "1px solid var(--border)", paddingTop: "0.5rem" }}>
+            <span style={{ fontSize: "0.8rem", opacity: 0.7, marginRight: "10px" }}>Fondo Tasse Virt.:</span>
+            <span style={{ fontSize: "1rem", fontWeight: "bold", color: "#ff9f0a" }}>€{tasseMensiliAccantonate.toFixed(2)}</span>
+          </div>
         </div>
 
-        <div className="flex-row-between" style={{ width: "100%", marginTop: "1rem", flexWrap: "wrap", justifyContent: "space-around" }}>
-          <div style={{ textAlign: "center", marginBottom: "0.5rem" }}>
-            <span style={{ fontSize: "0.8rem", opacity: 0.7 }}>In Tasca</span>
-            <div style={{ fontSize: "1.2rem", fontWeight: "bold", color: "var(--success)" }}>€{nettoMensile.toFixed(2)}</div>
+        {/* Card 2: Riepilogo Annuale MTD visualizzata solo su desktop per bilanciare */}
+        <div className="ios-card hidden md:flex flex-col justify-between">
+          <div>
+            <h3 className="mb-4">Riepilogo YTD (Anno)</h3>
+            <div className="chart-container-small mx-auto mb-4">
+              <Pie data={dataAnnuale} options={{ plugins: { legend: { display: false } } }} />
+            </div>
           </div>
-          <div style={{ textAlign: "center", marginBottom: "0.5rem" }}>
-            <span style={{ fontSize: "0.8rem", opacity: 0.7 }}>Lordo Inc.</span>
-            <div style={{ fontSize: "1.2rem", fontWeight: "bold", color: "var(--foreground)" }}>€{entrateMensili.toFixed(2)}</div>
-          </div>
-          <div style={{ textAlign: "center", marginBottom: "0.5rem" }}>
-            <span style={{ fontSize: "0.8rem", opacity: 0.7 }}>Spese Voc.</span>
-            <div style={{ fontSize: "1.2rem", fontWeight: "bold", color: "var(--destructive)" }}>€{usciteMensili.toFixed(2)}</div>
+
+          <div className="space-y-3 border-t border-black/10 dark:border-white/10 pt-4 mt-auto">
+            <p className="text-sm opacity-70 text-center">I grafici annuali offrono una visione globale YTD rispetto al regime fiscale impostato.</p>
           </div>
         </div>
-        <div style={{ width: "100%", textAlign: "center", marginTop: "0.5rem", borderTop: "1px solid var(--border)", paddingTop: "0.5rem" }}>
-          <span style={{ fontSize: "0.8rem", opacity: 0.7, marginRight: "10px" }}>Fondo Tasse Virt.:</span>
-          <span style={{ fontSize: "1rem", fontWeight: "bold", color: "#ff9f0a" }}>€{tasseMensiliAccantonate.toFixed(2)}</span>
+
+        <div className="hidden lg:block ios-card opacity-50 flex items-center justify-center border border-dashed border-gray-400">
+          <div className="text-center">
+            <div className="text-3xl mb-2">📊</div>
+            <p className="text-sm">Spazio riservato a futuri Modelli ML</p>
+          </div>
         </div>
+
       </div>
 
       {/* ALERT GAMIFICATION FISCALE (EPICA 4) */}
@@ -417,21 +445,27 @@ export default function Dashboard() {
         </div>
       )}
 
-      <h2 style={{ marginTop: "2rem" }}>Spese Settoriali Mensili</h2>
-      <p style={{ fontSize: "0.9rem", opacity: 0.7 }}>Dal 1° del Mese</p>
+      {/* Grid Inferiore: Categorie di Spesa */}
+      <div className="mt-8 mb-4 flex justify-between items-end">
+        <div>
+          <h2 style={{ margin: 0 }}>Spese Settoriali Mensili</h2>
+          <p style={{ fontSize: "0.9rem", opacity: 0.7, margin: 0 }}>Dal 1° del Mese</p>
+        </div>
+      </div>
 
-      {/* Grid Card Stile Apple Wallet */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
         {categorieSpesa.map((cat, idx) => (
           <div
             key={idx}
-            className="ios-card"
-            style={{ padding: "1rem", marginBottom: "0", cursor: "pointer" }}
+            className="ios-card hover:bg-white/5 transition-colors"
+            style={{ padding: "1.25rem", cursor: "pointer", display: "flex", flexDirection: "column", justifyContent: "space-between" }}
             onClick={() => setSelectedCategory(cat)}
           >
             <div style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>{cat.icona}</div>
-            <div style={{ fontSize: "1rem", fontWeight: "600" }}>{cat.nome}</div>
-            <div style={{ fontSize: "1.1rem", opacity: 0.8 }}>€{cat.totale.toFixed(2)}</div>
+            <div style={{ fontSize: "1rem", fontWeight: "600", color: "var(--foreground)" }}>{cat.nome}</div>
+            <div style={{ fontSize: "1.1rem", opacity: 0.8, color: cat.totale > 0 ? "var(--destructive)" : "inherit" }}>
+              €{cat.totale.toFixed(2)}
+            </div>
           </div>
         ))}
       </div>

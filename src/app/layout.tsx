@@ -75,7 +75,7 @@ export default function RootLayout({
       }}
     >
       <html lang="it">
-        <body className={`${geistSans.variable} ${geistMono.variable}`}>
+        <body className={`${geistSans.variable} ${geistMono.variable} bg-[#f2f2f7] dark:bg-black`}>
           <SignedOut>
             <main>
               {children}
@@ -84,18 +84,24 @@ export default function RootLayout({
 
           <SignedIn>
             <div className="app-container">
-              <header className="ios-header">
+
+              {/* Header Globale (Logo solo su mobile, Desktop lo ha in sidebar) */}
+              <header className="ios-header md:hidden">
                 <div className="header-title">Gestionale Facile</div>
                 <div className="auth-container">
                   <UserButton afterSignOutUrl="/" />
                 </div>
               </header>
 
-              <main className="main-content">
-                {children}
+              <MainMenu />
+
+              {/* Main Area: pb-24 per la bottom nav mobile, pl-64 per la sidebar su md */}
+              <main className="main-content pb-24 md:pb-8 md:pl-64 w-full">
+                <div className="max-w-7xl mx-auto w-full h-full">
+                  {children}
+                </div>
               </main>
 
-              <MainMenu />
             </div>
           </SignedIn>
         </body>
