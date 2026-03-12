@@ -4,7 +4,12 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { UserButton, useUser } from "@clerk/nextjs";
 
-export default function MainMenu() {
+export interface MainMenuProps {
+    isCollapsed?: boolean;
+    setIsCollapsed?: (collapsed: boolean) => void;
+}
+
+export default function MainMenu({ isCollapsed = false, setIsCollapsed }: MainMenuProps) {
     const pathname = usePathname();
     const { user } = useUser();
 
@@ -96,15 +101,28 @@ export default function MainMenu() {
             </nav>
 
             {/* DESKTOP SIDEBAR (>= md) */}
-            <aside className="hidden md:flex flex-col fixed inset-y-0 left-0 w-64 border-r border-white/5 bg-[#0c1017]/80 backdrop-blur-2xl z-50">
+            <aside 
+                className={`hidden md:flex flex-col fixed inset-y-0 left-0 border-r border-white/5 bg-[#0c1017]/80 backdrop-blur-2xl z-50 transition-all duration-300 ease-in-out ${
+                    isCollapsed ? 'w-20' : 'w-64'
+                }`}
+            >
 
                 {/* Logo Area */}
-                <div className="h-16 flex items-center justify-between px-6 border-b border-white/5">
-                    <span className="text-lg font-bold tracking-tighter text-white">LexTax</span>
+                <div className={`h-16 flex items-center border-b border-white/5 transition-all duration-300 ${isCollapsed ? 'justify-center px-0' : 'justify-between px-6'}`}>
+                    {!isCollapsed && <span className="text-lg font-bold tracking-tighter text-white">LexTax</span>}
+                    {setIsCollapsed && (
+                        <button 
+                            onClick={() => setIsCollapsed(!isCollapsed)}
+                            className={`p-2 rounded-lg hover:bg-white/10 text-white/70 hover:text-white transition-colors ${isCollapsed ? '' : ''}`}
+                            title={isCollapsed ? "Espandi" : "Comprimi"}
+                        >
+                            {isCollapsed ? '➡️' : '⬅️'}
+                        </button>
+                    )}
                 </div>
 
                 {/* Nav Links */}
-                <div className="flex-1 py-6 flex flex-col gap-2 px-3 overflow-y-auto">
+                <div className={`flex-1 py-6 flex flex-col gap-2 overflow-y-auto ${isCollapsed ? 'px-2 items-center' : 'px-3'}`}>
                     {[
                         { href: "/dashboard", icon: "📊", label: "Dashboard" },
                         { href: "/scanner", icon: "📸", label: "Aggiungi Spesa" },
@@ -115,29 +133,36 @@ export default function MainMenu() {
                         <Link
                             key={item.href}
                             href={item.href}
-                            className={`flex items-center gap-4 px-4 py-3 rounded-xl transition-all ${isActive(item.href)
-                                ? "bg-[#18212f] text-white border-l-4 border-l-[#ffcc00]"
-                                : "text-slate-400 hover:bg-[#18212f]/50 hover:text-white border-l-4 border-l-transparent"
+                            title={isCollapsed ? item.label : undefined}
+                            className={`flex items-center rounded-xl transition-all ${
+                                isCollapsed ? 'justify-center w-12 h-12 p-0' : 'justify-start w-full gap-4 px-4 py-3'
+                            } ${isActive(item.href)
+                                ? `bg-[#18212f] text-white ${isCollapsed ? 'border-2 border-[#ffcc00]' : 'border-l-4 border-l-[#ffcc00]'}`
+                                : `text-slate-400 hover:bg-[#18212f]/50 hover:text-white ${isCollapsed ? 'border-2 border-transparent' : 'border-l-4 border-l-transparent'}`
                                 }`}
                         >
-                            <span className="text-xl" style={{ filter: isActive(item.href) ? "drop-shadow(0 0 8px rgba(255, 204, 0, 0.4))" : "none" }}>
+                            <span className={`${isCollapsed ? 'text-2xl' : 'text-xl'}`} style={{ filter: isActive(item.href) ? "drop-shadow(0 0 8px rgba(255, 204, 0, 0.4))" : "none" }}>
                                 {item.icon}
                             </span>
-                            <span className={`font-medium ${isActive(item.href) ? "text-[#ffcc00]" : ""}`}>
-                                {item.label}
-                            </span>
+                            {!isCollapsed && (
+                                <span className={`font-medium ${isActive(item.href) ? "text-[#ffcc00]" : ""}`}>
+                                    {item.label}
+                                </span>
+                            )}
                         </Link>
                     ))}
                 </div>
 
                 {/* User Area Bottom */}
-                <div className="p-4 border-t border-white/5 w-full">
-                    <div className="flex items-center gap-3 w-full bg-[#18212f]/50 p-2 rounded-xl">
+                <div className="p-4 border-t border-white/5 w-full flex justify-center">
+                    <div className={`flex items-center transition-all bg-[#18212f]/50 p-2 rounded-xl ${isCollapsed ? 'justify-center w-full gap-0' : 'w-full gap-3'}`}>
                         <UserButton afterSignOutUrl="/" appearance={{ elements: { userButtonAvatarBox: "w-9 h-9" } }} />
-                        <div className="flex flex-col overflow-hidden">
-                            <span className="text-sm font-semibold text-white truncate">{user?.firstName || 'Avvocato'}</span>
-                            <span className="text-xs text-slate-500 truncate">{user?.primaryEmailAddress?.emailAddress}</span>
-                        </div>
+                        {!isCollapsed && (
+                            <div className="flex flex-col overflow-hidden">
+                                <span className="text-sm font-semibold text-white truncate">{user?.firstName || 'Avvocato'}</span>
+                                <span className="text-xs text-slate-500 truncate">{user?.primaryEmailAddress?.emailAddress}</span>
+                            </div>
+                        )}
                     </div>
                 </div>
             </aside>

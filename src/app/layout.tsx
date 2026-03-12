@@ -1,6 +1,6 @@
 import { ClerkProvider, SignedIn, SignedOut, UserButton } from "@clerk/nextjs";
 import Link from 'next/link';
-import MainMenu from './MainMenu';
+import SidebarLayout from './SidebarLayout';
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ExpenseProvider } from "@/context/ExpenseContext";
@@ -95,14 +95,9 @@ export default function RootLayout({
                   </div>
                 </header>
 
-                <MainMenu />
-
-                {/* Main Area: pb-24 per la bottom nav mobile, pl-64 per la sidebar su md */}
-                <main className="main-content pb-24 md:pb-8 md:pl-64 w-full">
-                  <div className="max-w-7xl mx-auto w-full h-full">
-                    {children}
-                  </div>
-                </main>
+                <SidebarLayout>
+                  {children}
+                </SidebarLayout>
 
               </div>
             </ExpenseProvider>
