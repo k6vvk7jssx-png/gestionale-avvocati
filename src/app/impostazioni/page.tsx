@@ -1,28 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useUser, useSession } from "@clerk/nextjs";
-import { createClient } from '@supabase/supabase-js';
+import { useUser } from "@clerk/nextjs";
+import { salvaProfiloAction, getProfiloAction } from './actions';
 
 export default function Impostazioni() {
-    const { isLoaded, isSignedIn, user } = useUser();
-    const { session } = useSession();
-
-    const getSupabase = () => {
-        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-        const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-
-        return createClient(supabaseUrl, supabaseAnonKey, {
-            global: {
-                fetch: async (url, options = {}) => {
-                    const clerkToken = await session?.getToken({ template: 'supabase' });
-                    const headers = new Headers(options?.headers);
-                    if (clerkToken) headers.set('Authorization', `Bearer ${clerkToken}`);
-                    return fetch(url, { ...options, headers, cache: 'no-store' });
-                },
-            },
-        });
-    };
+    const { isLoaded, isSignedIn } = useUser();
 
     // Stati per le impostazioni
     const [regime, setRegime] = useState<"ordinario" | "forfettario" | "free">("forfettario");
@@ -33,16 +16,11 @@ export default function Impostazioni() {
     const [, setIsLoading] = useState(true);
 
     useEffect(() => {
-        if (!isSignedIn || !user?.id) return;
+        if (!isSignedIn) return;
 
-        const salvaProfiloDB = async () => {
-            const supabase = getSupabase();
+        const fetchProfilo = async () => {
             try {
-                const { data, error } = await supabase
-                    .from('profiles')
-                    .select('*')
-                    .eq('user_id', user.id)
-                    .single();
+                const { data } = await getProfiloAction();
 
                 if (data) {
                     if (data.regime_fiscale.includes("forfettario")) {
@@ -53,9 +31,6 @@ export default function Impostazioni() {
                     }
                     if (data.expected_irpef_bracket) setScaglioneIrpef(data.expected_irpef_bracket);
                     if (data.sad_face_threshold) setSogliaFaccina(data.sad_face_threshold.toString());
-                } else if (error && error.code !== 'PGRST116') {
-                    // PGRST116 è l'errore se non trova nessuna riga (che è ok, vuol dire utente nuovo)
-                    console.error("Errore fetch profilo:", error);
                 }
             } catch (err) {
                 console.error("Catch error fetch:", err);
@@ -64,12 +39,10 @@ export default function Impostazioni() {
             }
         };
 
-        salvaProfiloDB();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isSignedIn, user, session]); // Added session to dependencies
+        fetchProfilo();
+    }, [isSignedIn]);
 
     const salvaImpostazioni = async () => {
-        if (!user?.id) return;
         setIsLoading(true);
 
         let regimeDaSalvare = regime as string;
@@ -77,45 +50,14 @@ export default function Impostazioni() {
             regimeDaSalvare = `forfettario_${aliquotaForfettario}`;
         }
 
-        const supabase = getSupabase();
-
         try {
-            // First check if the profile already exists
-            const { data: existingProfile } = await supabase
-                .from('profiles')
-                .select('user_id')
-                .eq('user_id', user.id)
-                .single();
+            const result = await salvaProfiloAction({
+                regime_fiscale: regimeDaSalvare,
+                expected_irpef_bracket: scaglioneIrpef,
+                sad_face_threshold: parseInt(sogliaFaccina),
+            });
 
-            let error;
-
-            if (existingProfile) {
-                // Update existing
-                const { error: updateError } = await supabase
-                    .from('profiles')
-                    .update({
-                        regime_fiscale: regimeDaSalvare,
-                        expected_irpef_bracket: scaglioneIrpef,
-                        sad_face_threshold: parseInt(sogliaFaccina),
-                        updated_at: new Date().toISOString()
-                    })
-                    .eq('user_id', user.id);
-                error = updateError;
-            } else {
-                // Insert new
-                const { error: insertError } = await supabase
-                    .from('profiles')
-                    .insert({
-                        user_id: user.id,
-                        regime_fiscale: regimeDaSalvare,
-                        expected_irpef_bracket: scaglioneIrpef,
-                        sad_face_threshold: parseInt(sogliaFaccina),
-                        updated_at: new Date().toISOString()
-                    });
-                error = insertError;
-            }
-
-            if (error) throw error;
+            if (result.error) throw new Error(result.error);
 
             // Salva anche nel local storage come backup veloce per l'UI sincrona
             localStorage.setItem("regime_fiscale_generale", regimeDaSalvare);
@@ -125,7 +67,7 @@ export default function Impostazioni() {
             setIsSaved(true);
             setTimeout(() => setIsSaved(false), 3000);
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        } catch (err: any) { // Kept 'any' for err as it's a catch block and type is often unknown
+        } catch (err: any) {
             console.error("Errore salvataggio profilo:", err);
             alert("Errore salvataggio: " + err.message);
         } finally {
