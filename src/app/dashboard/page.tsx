@@ -8,6 +8,7 @@ import { createClient } from "@supabase/supabase-js";
 import { CheckCircle2, XCircle, Trash2 } from "lucide-react";
 import ExportCommercialistaButton from "@/components/ExportCommercialistaButton";
 import { useExpenseContext } from "@/context/ExpenseContext";
+import { getProfiloAction } from "@/app/impostazioni/actions";
 
 ChartJS.register(ArcElement, Tooltip, Legend);
 
@@ -117,15 +118,12 @@ export default function Dashboard() {
     try {
       const supabase = getSupabase();
 
-      // 0. Carica Profilo Utente (Regime, Faccina, Irpef)
-      const { data: profile, error: errProfile } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('user_id', user?.id)
-        .single();
+      // 0. Carica Profilo Utente (Regime, Faccina, Irpef) via Server Action
+      const profiloResult = await getProfiloAction();
+      const profile = profiloResult.data;
 
       let currentScaglione = 23;
-      if (profile && !errProfile) {
+      if (profile) {
         if (profile.sad_face_threshold) setSogliaFaccina(profile.sad_face_threshold);
         if (profile.expected_irpef_bracket) {
           currentScaglione = parseInt(profile.expected_irpef_bracket);

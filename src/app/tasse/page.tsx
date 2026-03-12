@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useUser, useSession } from "@clerk/nextjs";
 import { Book } from "lucide-react";
 import { createClient } from "@supabase/supabase-js";
+import { getProfiloAction } from "@/app/impostazioni/actions";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -120,11 +121,9 @@ export default function Tasse() {
                 console.error("Errore fetch cause annue:", errCause);
             }
 
-            const { data: profile } = await supabase
-                .from('profiles')
-                .select('expected_irpef_bracket')
-                .eq('user_id', user?.id)
-                .single();
+            // Carica profilo utente via Server Action (affidabile, bypassa RLS/UUID)
+            const profiloResult = await getProfiloAction();
+            const profile = profiloResult.data;
 
             let currentScaglione = 33;
             if (profile?.expected_irpef_bracket) {
