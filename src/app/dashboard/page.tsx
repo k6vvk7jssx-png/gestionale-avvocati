@@ -98,6 +98,7 @@ export default function Dashboard() {
   const [entrateMensili, setEntrateMensili] = useState(0);
   const [usciteMensili, setUsciteMensili] = useState(0);
   const [tasseMensiliAccantonate, setTasseMensiliAccantonate] = useState(0);
+  const [ritenuteMensili, setRitenuteMensili] = useState(0);
   const [categorieSpesa, setCategorieSpesa] = useState(categorieIniziali);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [transazioniMese, setTransazioniMese] = useState<any[]>([]);
@@ -255,20 +256,32 @@ export default function Dashboard() {
         else deducibilitaSpeseContext += (e.amount * rate);
       });
 
+      // === CORE MATH LOGIC (Ordinario) ===
+      let totRitenute = 0;
       if (ordTotImponibileLordo > 0) {
-        const utileLordoCassa = Math.max(0, ordTotImponibileLordo - totUsciteDeducibili - deducibilitaSpeseContext);
-        const secchio3_cassa = utileLordoCassa * 0.17; // Sugli utili c'è il soggettivo
+        const speseDeducibiliTotali = totUsciteDeducibili + deducibilitaSpeseContext;
 
-        // Oneri Deducibili ( abbattono l'IRPEF, non la cassa )
-        const imponibileIrpef = Math.max(0, utileLordoCassa - secchio3_cassa - deducibilitaOneriContext);
+        // CassaTotale = CPA + CassaSoggettivo
+        const cassaSoggettivo = ordTotImponibileLordo * 0.17;
+        const cassaTotale = ordTotCpa + cassaSoggettivo;
+
+        // ImponibileIrpef = (Compenso + SpeseGenerali) - CassaSoggettivo - SpeseDeducibili - OneriDeducibili
+        const imponibileIrpef = Math.max(0, ordTotImponibileLordo - cassaSoggettivo - speseDeducibiliTotali - deducibilitaOneriContext);
 
         const percentualeIrpef = currentScaglione / 100.0;
-        const secchio4_irpefLorda = imponibileIrpef * percentualeIrpef;
-        const secchio5_addizionali = imponibileIrpef * 0.03; // ~3%
+        const irpefLorda = imponibileIrpef * percentualeIrpef;
 
-        const irpefaSaldo = Math.max(0, secchio4_irpefLorda - ordTotRitenuta);
+        // IrpefDaVersare = max(0, IrpefLorda - Ritenuta)
+        const irpefDaVersare = Math.max(0, irpefLorda - ordTotRitenuta);
 
-        totTasseAccantonate += (ordTotCpa + ordTotIva + secchio3_cassa + irpefaSaldo + secchio5_addizionali);
+        // FiscoDaVersare = IVA + IrpefDaVersare
+        const fiscoDaVersare = ordTotIva + irpefDaVersare;
+
+        // Spicchio 2 (Fondo Tasse Virt.) = FiscoDaVersare + CassaTotale
+        totTasseAccantonate += (fiscoDaVersare + cassaTotale);
+
+        // Le ritenute vanno in uno spicchio separato
+        totRitenute = ordTotRitenuta;
       }
 
       // Applica un safety cap
@@ -312,6 +325,7 @@ export default function Dashboard() {
 
       setEntrateMensili(totEntrate);
       setTasseMensiliAccantonate(totTasseAccantonate);
+      setRitenuteMensili(totRitenute);
       setUsciteMensili(totUsciteLorde);
       setCategorieSpesa(nuoveCategorie);
 
@@ -354,12 +368,31 @@ export default function Dashboard() {
     }
   };
 
-  const nettoMensile = entrateMensili - usciteMensili - tasseMensiliAccantonate;
-  // Per il grafico a torta, non possiamo avere valori negativi. 
-  // Se le uscite superano le entrate, il "netto puro" mostrato nella torta deve essere semplicemente 0 (o un minimo per non rompere il rendering)
-  const nettoPuroGrafico = Math.max(0.1, nettoMensile);
+  // === CALCOLI GRAFICI DASHBOARD ===
+  // Per Ordinario: VolumeAffariLordo = Compenso + SpeseGen + CPA + IVA
+  //   Spicchio 1 = Ritenuta
+  //   Spicchio 2 = FondoTasseVirt (FiscoDaVersare + CassaTotale) = tasseMensiliAccantonate
+  //   Spicchio 3 = NettoPulito = BonificoIncassato - Spicchio2
+  // Per Forfettario: logica precedente (semplificata)
 
-  // Percentuale allarme su Uscite rispetto alle Entrate (ma escludendo le tasse fisse dal calcolo di "sto spendendo troppo")
+  const isOrdinario = regimeCorrente === "ordinario";
+  let nettoPulito: number;
+  let volumeAffariLordo: number;
+
+  if (isOrdinario) {
+    // BonificoIncassato = VolumeAffariLordo - Ritenuta = entrateMensili - ritenuteMensili
+    // (entrateMensili in Ordinario = VolumeAffariLordo perché include Compenso + SpeseGen + CPA + IVA)
+    volumeAffariLordo = entrateMensili;
+    const bonificoIncassato = entrateMensili - ritenuteMensili;
+    nettoPulito = bonificoIncassato - tasseMensiliAccantonate;
+  } else {
+    volumeAffariLordo = entrateMensili;
+    nettoPulito = entrateMensili - usciteMensili - tasseMensiliAccantonate;
+  }
+
+  const nettoPuroGrafico = Math.max(0.1, nettoPulito);
+
+  // Percentuale allarme su Uscite rispetto alle Entrate
   const entrateVerificabili = entrateMensili > 0 ? entrateMensili : 1;
   const uscitePercentuale = (usciteMensili / entrateVerificabili) * 100;
 
@@ -367,18 +400,36 @@ export default function Dashboard() {
     ? <XCircle className="w-6 h-6 text-red-500" />
     : <CheckCircle2 className="w-6 h-6 text-green-500" />;
 
-  const dataMensile = {
-    labels: ['Netto Pulito', 'Spese', 'Tasse Accantonate'],
-    datasets: [
-      {
-        data: [nettoPuroGrafico, usciteMensili > 0 ? usciteMensili : 0.1, tasseMensiliAccantonate > 0 ? tasseMensiliAccantonate : 0.1],
-        backgroundColor: (nettoPuroGrafico === 0.1 && usciteMensili === 0 && tasseMensiliAccantonate === 0)
-          ? ['#e5e5ea', '#e5e5ea', '#e5e5ea']
-          : ['#34c759', '#ff3b30', '#ff9f0a'],
-        borderWidth: 0,
-      },
-    ],
-  };
+  // Grafico a torta: 3 spicchi che sommano a VolumeAffariLordo (Ordinario) o entrate (Forfettario)
+  const dataMensile = isOrdinario
+    ? {
+        labels: ['Netto Pulito', 'Fondo Tasse Virt.', 'Ritenute già pagate'],
+        datasets: [{
+          data: [
+            nettoPuroGrafico,
+            tasseMensiliAccantonate > 0 ? tasseMensiliAccantonate : 0.1,
+            ritenuteMensili > 0 ? ritenuteMensili : 0.1
+          ],
+          backgroundColor: (volumeAffariLordo === 0)
+            ? ['#e5e5ea', '#e5e5ea', '#e5e5ea']
+            : ['#34c759', '#ff9f0a', '#a78bfa'],
+          borderWidth: 0,
+        }],
+      }
+    : {
+        labels: ['Netto Pulito', 'Spese', 'Tasse Accantonate'],
+        datasets: [{
+          data: [
+            nettoPuroGrafico,
+            usciteMensili > 0 ? usciteMensili : 0.1,
+            tasseMensiliAccantonate > 0 ? tasseMensiliAccantonate : 0.1
+          ],
+          backgroundColor: (nettoPuroGrafico === 0.1 && usciteMensili === 0 && tasseMensiliAccantonate === 0)
+            ? ['#e5e5ea', '#e5e5ea', '#e5e5ea']
+            : ['#34c759', '#ff3b30', '#ff9f0a'],
+          borderWidth: 0,
+        }],
+      };
 
   // La torta annuale per ora la lasciamo vuota/placeholder fino al prossimo upgrade
   const dataAnnuale = {
@@ -451,7 +502,7 @@ export default function Dashboard() {
           <div className="flex-row-between" style={{ width: "100%", marginTop: "1rem", flexWrap: "wrap", justifyContent: "space-around" }}>
             <div style={{ textAlign: "center", marginBottom: "0.5rem" }}>
               <span style={{ fontSize: "0.8rem", opacity: 0.7 }}>In Tasca</span>
-              <div style={{ fontSize: "1.2rem", fontWeight: "bold", color: "var(--success)" }}>€{nettoMensile.toFixed(2)}</div>
+              <div style={{ fontSize: "1.2rem", fontWeight: "bold", color: "var(--success)" }}>€{nettoPulito.toFixed(2)}</div>
             </div>
             <div style={{ textAlign: "center", marginBottom: "0.5rem" }}>
               <span style={{ fontSize: "0.8rem", opacity: 0.7 }}>Lordo Inc.</span>
@@ -465,6 +516,13 @@ export default function Dashboard() {
           <div style={{ width: "100%", textAlign: "center", marginTop: "0.5rem", borderTop: "1px solid var(--border)", paddingTop: "0.5rem" }}>
             <span style={{ fontSize: "0.8rem", opacity: 0.7, marginRight: "10px" }}>Fondo Tasse Virt.:</span>
             <span style={{ fontSize: "1rem", fontWeight: "bold", color: "#ff9f0a" }}>€{tasseMensiliAccantonate.toFixed(2)}</span>
+            {isOrdinario && ritenuteMensili > 0 && (
+              <>
+                <br/>
+                <span style={{ fontSize: "0.75rem", opacity: 0.6, marginRight: "6px" }}>Ritenute già pagate:</span>
+                <span style={{ fontSize: "0.9rem", fontWeight: "bold", color: "#a78bfa" }}>€{ritenuteMensili.toFixed(2)}</span>
+              </>
+            )}
           </div>
         </div>
 

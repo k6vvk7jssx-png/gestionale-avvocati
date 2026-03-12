@@ -84,7 +84,10 @@ export default function Tasse() {
         tasseDaPagare: 0,
         cassaDaPagare: 0,
         nettoTasche: 0,
-        speseDeducibili: 0
+        speseDeducibili: 0,
+        ritenuteTotali: 0,
+        fiscoDaVersare: 0,
+        isOrdinario: false
     });
     const [dettagliCause, setDettagliCause] = useState<CausaDettaglio[]>([]);
     const [isLoadingDati, setIsLoadingDati] = useState(true);
@@ -234,34 +237,54 @@ export default function Tasse() {
             }
 
             if (imponibileOrdinarioAnnuo > 0) {
-                // Sottraiamo le spese deducibili dall'imponibile di cassa ordinario
-                let imponibileCassa = imponibileOrdinarioAnnuo - speseTotaliDeducibili;
-                if (imponibileCassa < 0) imponibileCassa = 0;
+                const speseDeducibiliTotali = speseTotaliDeducibili;
 
-                const cassaSoggettiva = imponibileCassa * 0.17;
-                const cassaForenseTotale = cassaSoggettiva + totCpaOrdinario;
+                // CassaTotale = CPA + CassaSoggettivo
+                const cassaSoggettivo = imponibileOrdinarioAnnuo * 0.17;
+                const cassaForenseTotale = totCpaOrdinario + cassaSoggettivo;
 
-                const imponibileIrpef = imponibileCassa - cassaSoggettiva;
-                // Calcolo IRPEF basato sullo scaglione previsionale utente
+                // ImponibileIrpef = (Compenso + SpeseGenerali) - CassaSoggettivo - SpeseDeducibili
+                const imponibileIrpef = Math.max(0, imponibileOrdinarioAnnuo - cassaSoggettivo - speseDeducibiliTotali);
+
                 const irpefLorda = imponibileIrpef * (currentScaglione / 100.0);
-                const addizionali = imponibileIrpef * 0.03;
 
-                const irpefaSaldo = Math.max(0, irpefLorda - totRitenutaOrdinario);
-                const fiscoTotale = totIvaOrdinario + irpefaSaldo + addizionali;
+                // IrpefDaVersare = max(0, IrpefLorda - Ritenuta)
+                const irpefDaVersare = Math.max(0, irpefLorda - totRitenutaOrdinario);
 
-                totTasse += fiscoTotale;
+                // FiscoDaVersare = IVA + IrpefDaVersare
+                const fiscoDaVersare = totIvaOrdinario + irpefDaVersare;
+
+                totTasse += fiscoDaVersare;
                 totCassa += cassaForenseTotale;
+
+                // Netto = VolumeAffariLordo - Ritenuta - FiscoDaVersare - CassaTotale - SpeseDeducibili
+                totNetto = totLordo - totRitenutaOrdinario - fiscoDaVersare - cassaForenseTotale - speseTotaliDeducibili;
+
+                setDatiAnnuali({
+                    incassatoLordo: totLordo,
+                    tasseDaPagare: totTasse,
+                    cassaDaPagare: totCassa,
+                    nettoTasche: totNetto,
+                    speseDeducibili: speseTotaliDeducibili,
+                    ritenuteTotali: totRitenutaOrdinario,
+                    fiscoDaVersare: fiscoDaVersare,
+                    isOrdinario: true
+                });
+            } else {
+                // Forfettario/Free/Misto senza ordinario
+                totNetto = totLordo - totTasse - totCassa;
+
+                setDatiAnnuali({
+                    incassatoLordo: totLordo,
+                    tasseDaPagare: totTasse,
+                    cassaDaPagare: totCassa,
+                    nettoTasche: totNetto,
+                    speseDeducibili: speseTotaliDeducibili,
+                    ritenuteTotali: 0,
+                    fiscoDaVersare: 0,
+                    isOrdinario: false
+                });
             }
-
-            totNetto = totLordo - totTasse - totCassa;
-
-            setDatiAnnuali({
-                incassatoLordo: totLordo,
-                tasseDaPagare: totTasse,
-                cassaDaPagare: totCassa,
-                nettoTasche: totNetto,
-                speseDeducibili: speseTotaliDeducibili
-            });
             setDettagliCause(causeDettaglio);
 
         } catch (error) {
@@ -374,9 +397,16 @@ export default function Tasse() {
                                 <span style={{ fontWeight: "600", color: "var(--foreground)" }}>€{datiAnnuali.incassatoLordo.toFixed(2)}</span>
                             </div>
 
+                            {datiAnnuali.isOrdinario && (
+                                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "1rem", borderBottom: "1px solid var(--border)", paddingBottom: "0.5rem", color: "#a78bfa" }}>
+                                    <span>Ritenute d&apos;Acconto (già pagate)</span>
+                                    <span style={{ fontWeight: "bold" }}>- €{datiAnnuali.ritenuteTotali.toFixed(2)}</span>
+                                </div>
+                            )}
+
                             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "1rem", borderBottom: "1px solid var(--border)", paddingBottom: "0.5rem", color: "var(--destructive)" }}>
-                                <span>Fisco (IRPEF/Sostitutiva) Totale</span>
-                                <span style={{ fontWeight: "bold" }}>- €{datiAnnuali.tasseDaPagare.toFixed(2)}</span>
+                                <span>{datiAnnuali.isOrdinario ? 'Fisco da versare (IVA+IRPEF)' : 'Fisco (IRPEF/Sostitutiva) Totale'}</span>
+                                <span style={{ fontWeight: "bold" }}>- €{datiAnnuali.isOrdinario ? datiAnnuali.fiscoDaVersare.toFixed(2) : datiAnnuali.tasseDaPagare.toFixed(2)}</span>
                             </div>
 
                             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "1rem", borderBottom: "1px solid var(--border)", paddingBottom: "0.5rem", color: "var(--destructive)" }}>
