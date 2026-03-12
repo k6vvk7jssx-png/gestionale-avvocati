@@ -64,6 +64,9 @@ export default function Impostazioni() {
             localStorage.setItem("soglia_faccina", sogliaFaccina);
             localStorage.setItem("scaglione_irpef", scaglioneIrpef);
 
+            // Forza l'aggiornamento del contesto globale (stesso tab)
+            window.dispatchEvent(new Event('storage'));
+
             setIsSaved(true);
             setTimeout(() => setIsSaved(false), 3000);
             // eslint-disable-next-line @typescript-eslint/no-explicit-any

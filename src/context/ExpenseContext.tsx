@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, ReactNode } from "react";
+import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
 
 export type Regime = "ordinario" | "forfettario";
 
@@ -23,8 +23,26 @@ interface ExpenseContextType {
 const ExpenseContext = createContext<ExpenseContextType | undefined>(undefined);
 
 export const ExpenseProvider = ({ children }: { children: ReactNode }) => {
-    const [regime, setRegime] = useState<Regime>("ordinario");
+    const [regime, setRegime] = useState<Regime>(() => {
+        if (typeof window !== 'undefined') {
+            const saved = localStorage.getItem("regime_fiscale_generale");
+            if (saved?.includes("forfettario")) return "forfettario";
+            if (saved === "ordinario") return "ordinario";
+        }
+        return "forfettario";
+    });
     const [expenses, setExpenses] = useState<Expense[]>([]);
+
+    // Sync regime when localStorage changes (e.g. after saving in Impostazioni)
+    useEffect(() => {
+        const handleStorage = () => {
+            const saved = localStorage.getItem("regime_fiscale_generale");
+            if (saved?.includes("forfettario")) setRegime("forfettario");
+            else if (saved === "ordinario") setRegime("ordinario");
+        };
+        window.addEventListener('storage', handleStorage);
+        return () => window.removeEventListener('storage', handleStorage);
+    }, []);
 
     const addExpense = (expense: Omit<Expense, "id" | "date">) => {
         const newExpense: Expense = {
