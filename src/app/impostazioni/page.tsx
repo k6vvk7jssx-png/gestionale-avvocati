@@ -80,15 +80,40 @@ export default function Impostazioni() {
         const supabase = getSupabase();
 
         try {
-            const { error } = await supabase
+            // First check if the profile already exists
+            const { data: existingProfile } = await supabase
                 .from('profiles')
-                .upsert({
-                    user_id: user.id,
-                    regime_fiscale: regimeDaSalvare,
-                    expected_irpef_bracket: scaglioneIrpef,
-                    sad_face_threshold: parseInt(sogliaFaccina),
-                    updated_at: new Date().toISOString()
-                }, { onConflict: 'user_id' });
+                .select('user_id')
+                .eq('user_id', user.id)
+                .single();
+
+            let error;
+
+            if (existingProfile) {
+                // Update existing
+                const { error: updateError } = await supabase
+                    .from('profiles')
+                    .update({
+                        regime_fiscale: regimeDaSalvare,
+                        expected_irpef_bracket: scaglioneIrpef,
+                        sad_face_threshold: parseInt(sogliaFaccina),
+                        updated_at: new Date().toISOString()
+                    })
+                    .eq('user_id', user.id);
+                error = updateError;
+            } else {
+                // Insert new
+                const { error: insertError } = await supabase
+                    .from('profiles')
+                    .insert({
+                        user_id: user.id,
+                        regime_fiscale: regimeDaSalvare,
+                        expected_irpef_bracket: scaglioneIrpef,
+                        sad_face_threshold: parseInt(sogliaFaccina),
+                        updated_at: new Date().toISOString()
+                    });
+                error = insertError;
+            }
 
             if (error) throw error;
 
