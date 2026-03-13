@@ -10,7 +10,7 @@ export default function Impostazioni() {
     // Stati per le impostazioni
     const [regime, setRegime] = useState<"ordinario" | "forfettario" | "free">("forfettario");
     const [aliquotaForfettario, setAliquotaForfettario] = useState<"5" | "15">("15");
-    const [scaglioneIrpef, setScaglioneIrpef] = useState<"23" | "33" | "43">("23");
+    const [scaglioneIrpef, setScaglioneIrpef] = useState<"23" | "35" | "43">("23");
     const [sogliaFaccina, setSogliaFaccina] = useState<string>("40");
     const [isSaved, setIsSaved] = useState(false);
     const [, setIsLoading] = useState(true);
@@ -148,11 +148,11 @@ export default function Impostazioni() {
                                 <div style={{ fontSize: '0.8rem', opacity: 0.8, marginTop: '4px' }}>1° Scaglione: Da 0 a 28.000 €</div>
                             </button>
                             <button
-                                className={`ios-segment ${scaglioneIrpef === '33' ? 'active' : ''}`}
-                                onClick={() => setScaglioneIrpef('33')}
+                                className={`ios-segment ${scaglioneIrpef === '35' ? 'active' : ''}`}
+                                onClick={() => setScaglioneIrpef('35')}
                                 style={{ textAlign: 'left', padding: '12px' }}
                             >
-                                <div style={{ fontWeight: 'bold' }}>33%</div>
+                                <div style={{ fontWeight: 'bold' }}>35%</div>
                                 <div style={{ fontSize: '0.8rem', opacity: 0.8, marginTop: '4px' }}>2° Scaglione: Da 28.001 a 50.000 €</div>
                             </button>
                             <button

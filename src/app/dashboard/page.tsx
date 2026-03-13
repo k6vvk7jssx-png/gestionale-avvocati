@@ -367,25 +367,22 @@ export default function Dashboard() {
   };
 
   // === CALCOLI GRAFICI DASHBOARD ===
-  // Per Ordinario: VolumeAffariLordo = Compenso + SpeseGen + CPA + IVA
-  //   Spicchio 1 = Ritenuta
-  //   Spicchio 2 = FondoTasseVirt (FiscoDaVersare + CassaTotale) = tasseMensiliAccantonate
-  //   Spicchio 3 = NettoPulito = BonificoIncassato - Spicchio2
-  // Per Forfettario: logica precedente (semplificata)
+  // Per Ordinario: 4 spicchi (Ritenute, Fondo Tasse Virt, Spese Affrontate, Netto Pulito)
+  // Per Forfettario: 3 spicchi (Fondo Tasse Virt, Spese Affrontate, Netto Pulito)
 
   const isOrdinario = regimeCorrente === "ordinario";
+  const speseAffrontateTotali = usciteMensili; // Cash-out reale (importi lordi dal DB)
+
   let nettoPulito: number;
-  let volumeAffariLordo: number;
 
   if (isOrdinario) {
-    // BonificoIncassato = VolumeAffariLordo - Ritenuta = entrateMensili - ritenuteMensili
-    // (entrateMensili in Ordinario = VolumeAffariLordo perché include Compenso + SpeseGen + CPA + IVA)
-    volumeAffariLordo = entrateMensili;
+    // BonificoIncassato = VolumeAffariLordo - Ritenuta
     const bonificoIncassato = entrateMensili - ritenuteMensili;
-    nettoPulito = bonificoIncassato - tasseMensiliAccantonate;
+    // Netto = Bonifico - Fondo Tasse - Spese Affrontate
+    nettoPulito = bonificoIncassato - tasseMensiliAccantonate - speseAffrontateTotali;
   } else {
-    volumeAffariLordo = entrateMensili;
-    nettoPulito = entrateMensili - usciteMensili - tasseMensiliAccantonate;
+    // Forfettario: Netto = Entrate - Fondo Tasse - Spese
+    nettoPulito = entrateMensili - tasseMensiliAccantonate - speseAffrontateTotali;
   }
 
   const nettoPuroGrafico = Math.max(0.1, nettoPulito);
@@ -398,33 +395,36 @@ export default function Dashboard() {
     ? <XCircle className="w-6 h-6 text-red-500" />
     : <CheckCircle2 className="w-6 h-6 text-green-500" />;
 
-  // Grafico a torta: 3 spicchi che sommano a VolumeAffariLordo (Ordinario) o entrate (Forfettario)
+  // Grafico a torta
   const dataMensile = isOrdinario
     ? {
-        labels: ['Netto Pulito', 'Fondo Tasse Virt.', 'Ritenute già pagate'],
+        // ORDINARIO: 4 spicchi
+        labels: ['Netto Pulito', 'Fondo Tasse Virt.', 'Spese Affrontate', 'Ritenute già pagate'],
         datasets: [{
           data: [
             nettoPuroGrafico,
             tasseMensiliAccantonate > 0 ? tasseMensiliAccantonate : 0.1,
+            speseAffrontateTotali > 0 ? speseAffrontateTotali : 0.1,
             ritenuteMensili > 0 ? ritenuteMensili : 0.1
           ],
-          backgroundColor: (volumeAffariLordo === 0)
-            ? ['#e5e5ea', '#e5e5ea', '#e5e5ea']
-            : ['#34c759', '#ff9f0a', '#a78bfa'],
+          backgroundColor: (entrateMensili === 0)
+            ? ['#e5e5ea', '#e5e5ea', '#e5e5ea', '#e5e5ea']
+            : ['#34c759', '#ff9f0a', '#ff3b30', '#a78bfa'],
           borderWidth: 0,
         }],
       }
     : {
-        labels: ['Netto Pulito', 'Spese', 'Tasse Accantonate'],
+        // FORFETTARIO: 3 spicchi
+        labels: ['Netto Pulito', 'Fondo Tasse Virt.', 'Spese Affrontate'],
         datasets: [{
           data: [
             nettoPuroGrafico,
-            usciteMensili > 0 ? usciteMensili : 0.1,
-            tasseMensiliAccantonate > 0 ? tasseMensiliAccantonate : 0.1
+            tasseMensiliAccantonate > 0 ? tasseMensiliAccantonate : 0.1,
+            speseAffrontateTotali > 0 ? speseAffrontateTotali : 0.1
           ],
-          backgroundColor: (nettoPuroGrafico === 0.1 && usciteMensili === 0 && tasseMensiliAccantonate === 0)
+          backgroundColor: (entrateMensili === 0 && speseAffrontateTotali === 0)
             ? ['#e5e5ea', '#e5e5ea', '#e5e5ea']
-            : ['#34c759', '#ff3b30', '#ff9f0a'],
+            : ['#34c759', '#ff9f0a', '#ff3b30'],
           borderWidth: 0,
         }],
       };
