@@ -312,21 +312,30 @@ export default function Home() {
           {/* Text Left */}
           <div className="flex-1 text-center md:text-left">
             <h2 className="text-3xl md:text-4xl font-bold text-white mb-4 tracking-tight">
-              La tua privacy finanziaria. <br />
-              Oggi.
+              Privacy Assoluta. <br />
+              Nessun dato trafugabile.
             </h2>
-            <p className="text-slate-400 mb-8 max-w-md mx-auto md:mx-0">
-              L&#39;unica soluzione dedicata alla realtà forense italiana che non condivide i tuoi dati di fatturazione as-a-service. Usa il tuo account per criptare e proteggere le fatture.
-            </p>
+            <div className="text-slate-400 mb-8 max-w-md mx-auto md:mx-0 space-y-4">
+              <p>
+                L&#39;unica soluzione dedicata alla realtà forense italiana strutturata su architettura <strong>Zero-Trust</strong>. I tuoi dati finanziari sono vincolati algoritmicamente al tuo token crittografico.
+              </p>
+              <p>
+                <strong>LexTax non ha accesso, non legge, e non può materialmente manipolare, rubare o vendere a terzi</strong> né il tuo fatturato né i dati dei tuoi clienti. L&#39;infrastruttura Cloud blinda le tue fatture tramite protocolli RLS (Row Level Security).
+              </p>
+            </div>
 
             <ul className="space-y-3 mb-8 inline-block text-left mx-auto">
               <li className="flex items-center text-sm font-medium text-slate-300">
                 <CheckCircle2 className="w-5 h-5 mr-3 text-emerald-400" />
-                Crittografia Auth Integrata
+                Crittografia Auth Integrata (JWT)
               </li>
               <li className="flex items-center text-sm font-medium text-slate-300">
                 <CheckCircle2 className="w-5 h-5 mr-3 text-emerald-400" />
-                Zero server OCR Tracking
+                Isolamento Inviolabile DB (RLS)
+              </li>
+              <li className="flex items-center text-sm font-medium text-slate-300">
+                <CheckCircle2 className="w-5 h-5 mr-3 text-emerald-400" />
+                Conformità GDPR Europea 100%
               </li>
             </ul>
           </div>
@@ -376,8 +385,8 @@ export default function Home() {
             <a href="#" className="hover:text-white transition-colors">Normative</a>
           </div>
         </div>
-        <div className="max-w-6xl mx-auto mt-8 text-xs text-slate-600 font-medium text-center sm:text-left">
-          &copy; {new Date().getFullYear()} LexTax Ltd. Nessun dato OCR o di fatturazione viene utilizzato per fini pubblicitari.
+        <div className="max-w-6xl mx-auto mt-8 text-xs text-slate-600 font-medium text-center sm:text-left leading-relaxed">
+          &copy; {new Date().getFullYear()} LexTax Ltd. Questo gestionale utilizza un&apos;infrastruttura sicura in cui tutti i dati immessi (fatture, importi, spese e clienti) sono criptati e isolati. LexTax non vende, non condivide e non ha il permesso tecnico di prelevare informazioni personali o finanziarie dei propri utenti per alcuno scopo (pubblicitario o commerciale).
         </div>
       </footer>
 
