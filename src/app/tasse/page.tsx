@@ -168,7 +168,12 @@ export default function Tasse() {
                         const speseGenerali = compensoBase * 0.15;
                         const redditoImponibileLordo = (compensoBase + speseGenerali) * 0.78;
 
-                        const cassaSoggettiva = redditoImponibileLordo * 0.17;
+                        let cassaSoggettiva = 0;
+                        if (redditoImponibileLordo <= 135000) {
+                            cassaSoggettiva = redditoImponibileLordo * 0.17;
+                        } else {
+                            cassaSoggettiva = (135000 * 0.17) + ((redditoImponibileLordo - 135000) * 0.03);
+                        }
                         const cpa = c.cpa_4 ? Number(c.cpa_4) : (compensoBase + speseGenerali) * 0.04;
                         const cassaForenseTotale = cassaSoggettiva + cpa;
 
@@ -207,7 +212,12 @@ export default function Tasse() {
                         totLordo += volumeAffari;
 
                         // Calcolo proporzionale singola fattura per lo spaccato visivo
-                        const cassaSoggettivaItem = imponibileLordoItem * 0.17;
+                        let cassaSoggettivaItem = 0;
+                        if (imponibileLordoItem <= 135000) {
+                            cassaSoggettivaItem = imponibileLordoItem * 0.17;
+                        } else {
+                            cassaSoggettivaItem = (135000 * 0.17) + ((imponibileLordoItem - 135000) * 0.03);
+                        }
                         const cassaForenseItem = cassaSoggettivaItem + cpa;
 
                         const imponibileIrpefItem = imponibileLordoItem - cassaSoggettivaItem;
@@ -239,7 +249,12 @@ export default function Tasse() {
                 const speseDeducibiliTotali = speseTotaliDeducibili;
 
                 // CassaTotale = CPA + CassaSoggettivo
-                const cassaSoggettivo = imponibileOrdinarioAnnuo * 0.17;
+                let cassaSoggettivo = 0;
+                if (imponibileOrdinarioAnnuo <= 135000) {
+                    cassaSoggettivo = imponibileOrdinarioAnnuo * 0.17;
+                } else {
+                    cassaSoggettivo = (135000 * 0.17) + ((imponibileOrdinarioAnnuo - 135000) * 0.03);
+                }
                 const cassaForenseTotale = totCpaOrdinario + cassaSoggettivo;
 
                 // ImponibileIrpef = (Compenso + SpeseGenerali) - CassaSoggettivo - SpeseDeducibili
@@ -304,7 +319,12 @@ export default function Tasse() {
             const speseGenerali = compensoBase * 0.15;
             const redditoImponibileLordo = (compensoBase + speseGenerali) * 0.78;
 
-            const cassaSoggettiva = redditoImponibileLordo * 0.17;
+            let cassaSoggettiva = 0;
+            if (redditoImponibileLordo <= 135000) {
+                cassaSoggettiva = redditoImponibileLordo * 0.17;
+            } else {
+                cassaSoggettiva = (135000 * 0.17) + ((redditoImponibileLordo - 135000) * 0.03);
+            }
             const cpa = (compensoBase + speseGenerali) * 0.04;
             cassa = cassaSoggettiva + cpa;
 
@@ -322,7 +342,12 @@ export default function Tasse() {
             const speseDeducibili = totaleSpeseSimulate;
 
             const imponibileCassa = Math.max(0, imponibileLordo - speseDeducibili);
-            const cassaSoggettiva = imponibileCassa * 0.17;
+            let cassaSoggettiva = 0;
+            if (imponibileCassa <= 135000) {
+                cassaSoggettiva = imponibileCassa * 0.17;
+            } else {
+                cassaSoggettiva = (135000 * 0.17) + ((imponibileCassa - 135000) * 0.03);
+            }
             const cpa = imponibileLordo * 0.04;
             cassa = cassaSoggettiva + cpa;
 

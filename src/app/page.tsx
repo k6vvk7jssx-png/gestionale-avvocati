@@ -25,20 +25,49 @@ export default function Home() {
   const calcoloSimulatore = useMemo(() => {
     const lordo = parseFloat(simLordo) || 0;
 
+    const CASSA_ALIQUOTA_BASE = 0.17;
+    const CASSA_ALIQUOTA_ECCEDENZA = 0.03;
+    const CASSA_TETTO = 135000;
+
     if (simRegime.startsWith("forfettario")) {
-      const imponibileLordo = lordo * 0.78; // Coeff redditività avvocati forfait puro senza spese vive nel calcolatore semplice
-      const cassaSoggettivo = imponibileLordo * 0.17;
-      const baseNetta = imponibileLordo - cassaSoggettivo;
+      const imponibileLordo = lordo * 0.78; // Coeff redditività avvocati forfait
+      
+      let cassaSoggettivo = 0;
+      if (imponibileLordo <= CASSA_TETTO) {
+        cassaSoggettivo = imponibileLordo * CASSA_ALIQUOTA_BASE;
+      } else {
+        cassaSoggettivo = (CASSA_TETTO * CASSA_ALIQUOTA_BASE) + ((imponibileLordo - CASSA_TETTO) * CASSA_ALIQUOTA_ECCEDENZA);
+      }
+
+      const baseNetta = Math.max(0, imponibileLordo - cassaSoggettivo);
       const aliquota = simRegime === "forfettario_5" ? 0.05 : 0.15;
       const tasse = baseNetta * aliquota;
 
       const nettoStima = lordo - tasse - cassaSoggettivo;
       return { tasse, cassa: cassaSoggettivo, netto: nettoStima };
     } else {
-      // Ordinario Semplificato
-      const cassaSoggettivo = lordo * 0.17;
-      const baseIrpef = lordo - cassaSoggettivo;
-      const tasse = baseIrpef * 0.23; // Primo scaglione fisso per simulazione base
+      // Ordinario Semplificato (senza spese deducibili inserite)
+      const imponibile = lordo;
+      
+      let cassaSoggettivo = 0;
+      if (imponibile <= CASSA_TETTO) {
+        cassaSoggettivo = imponibile * CASSA_ALIQUOTA_BASE;
+      } else {
+        cassaSoggettivo = (CASSA_TETTO * CASSA_ALIQUOTA_BASE) + ((imponibile - CASSA_TETTO) * CASSA_ALIQUOTA_ECCEDENZA);
+      }
+
+      const baseIrpef = Math.max(0, imponibile - cassaSoggettivo);
+      
+      // Simulazione Scaglioni IRPEF 2024 (23% fino a 28k, 35% fino a 50k, 43% oltre)
+      let tasse = 0;
+      if (baseIrpef <= 28000) {
+        tasse = baseIrpef * 0.23;
+      } else if (baseIrpef <= 50000) {
+        tasse = (28000 * 0.23) + ((baseIrpef - 28000) * 0.35);
+      } else {
+        tasse = (28000 * 0.23) + (22000 * 0.35) + ((baseIrpef - 50000) * 0.43);
+      }
+
       const nettoStima = lordo - tasse - cassaSoggettivo;
       return { tasse, cassa: cassaSoggettivo, netto: nettoStima };
     }
