@@ -99,6 +99,7 @@ export default function Dashboard() {
   const [entrateMensili, setEntrateMensili] = useState(0);
   const [usciteMensili, setUsciteMensili] = useState(0);
   const [tasseMensiliAccantonate, setTasseMensiliAccantonate] = useState(0);
+  const [cassaMaturataMensile, setCassaMaturataMensile] = useState(0);
   const [ritenuteMensili, setRitenuteMensili] = useState(0);
   const [categorieSpesa, setCategorieSpesa] = useState(categorieIniziali);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -239,6 +240,11 @@ export default function Dashboard() {
       // 6. Logica Bivio Regime e Calcolo Tasse Aggregato
       totTasseAccantonate = 0;
       let totRitenute = ordTotRitenuta;
+      let totCassaMaturata = 0;
+
+      const CASSA_ALIQUOTA_BASE = 0.17;
+      const CASSA_ALIQUOTA_ECCEDENZA = 0.03;
+      const CASSA_TETTO = 135000;
 
       if (lordoIncassato > 0) {
         if (!isRegimeOrdinario) {
@@ -246,7 +252,14 @@ export default function Dashboard() {
           // L'Imponibile Fiscale è uguale al Lordo Incassato moltiplicato per 0.78
           const imponibileFiscale = lordoIncassato * 0.78;
           
-          const cassaForense = imponibileFiscale * 0.17;
+          let cassaForense = 0;
+          if (imponibileFiscale <= CASSA_TETTO) {
+            cassaForense = imponibileFiscale * CASSA_ALIQUOTA_BASE;
+          } else {
+            cassaForense = (CASSA_TETTO * CASSA_ALIQUOTA_BASE) + ((imponibileFiscale - CASSA_TETTO) * CASSA_ALIQUOTA_ECCEDENZA);
+          }
+          totCassaMaturata = cassaForense;
+
           const baseImposta = Math.max(0, imponibileFiscale - cassaForense);
           
           // Prendi la % forfettario dal profilo (default 15%)
@@ -260,7 +273,13 @@ export default function Dashboard() {
           // Imponibile Fiscale = (Lordo Incassato - Totale Spese Deducibili)
           const imponibileFiscale = Math.max(0, lordoIncassato - totaleSpeseDeducibili);
 
-          const cassaForense = imponibileFiscale * 0.17;
+          let cassaForense = 0;
+          if (imponibileFiscale <= CASSA_TETTO) {
+            cassaForense = imponibileFiscale * CASSA_ALIQUOTA_BASE;
+          } else {
+            cassaForense = (CASSA_TETTO * CASSA_ALIQUOTA_BASE) + ((imponibileFiscale - CASSA_TETTO) * CASSA_ALIQUOTA_ECCEDENZA);
+          }
+          totCassaMaturata = cassaForense;
           
           // L'IRPEF si applica sull'imponibile al netto della cassa forense
           const baseIrpef = Math.max(0, imponibileFiscale - cassaForense);
@@ -311,6 +330,7 @@ export default function Dashboard() {
 
       setEntrateMensili(totEntrate);
       setTasseMensiliAccantonate(totTasseAccantonate);
+      setCassaMaturataMensile(totCassaMaturata);
       setRitenuteMensili(totRitenute);
       setUsciteMensili(totUsciteLorde);
       setCategorieSpesa(nuoveCategorie);
@@ -555,6 +575,23 @@ export default function Dashboard() {
         </div>
       )}
 
+      {/* ALERT CASSA FORENSE MINIMALE */}
+      {cassaMaturataMensile > 0 && cassaMaturataMensile < 3600 && (
+        <div className="ios-card" style={{ marginTop: "1rem", backgroundColor: "rgba(255, 149, 0, 0.1)", border: "1px solid #ff9f0a", animation: "fadeIn 0.5s" }}>
+          <div style={{ display: "flex", gap: "12px", alignItems: "flex-start" }}>
+            <div style={{ fontSize: "2rem" }}>⚠️</div>
+            <div>
+              <h4 style={{ margin: "0 0 4px 0", color: "#cc7e00" }}>
+                Target Cassa Forense
+              </h4>
+              <p style={{ fontSize: "0.85rem", margin: 0, opacity: 0.9 }}>
+                Hai maturato <strong>€{cassaMaturataMensile.toFixed(2)}</strong> di contributi. La Cassa richiede un versamento minimo annuo di 3.600€. Mancano <strong>€{(3600 - cassaMaturataMensile).toFixed(2)}</strong> per coprire la quota fissa.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Grid Inferiore: Categorie di Spesa (GLOBAL STATE CONTEXT) */}
       <div className="mt-8 mb-4 flex justify-between items-end">
         <div>
@@ -671,6 +708,11 @@ export default function Dashboard() {
 
               <div className="ios-card" style={{ marginBottom: "1rem" }}>
                 <h3 style={{ color: "var(--primary)", marginBottom: "0.5rem" }}>Il Nuovo Motore Fiscale</h3>
+                <div style={{ marginTop: "1rem" }}>
+                  <p style={{ fontSize: "0.9rem", color: "var(--foreground)", opacity: 0.8, marginBottom: "1rem" }}>
+                    Il calcolo si adatta automaticamente al tuo regime: <strong>Forfettario</strong> (imponibile fisso al 78% del Lordo) o <strong>Ordinario</strong> (deduzione analitica reale delle spese in base alle categorie sottostanti).
+                  </p>
+                </div>
                 <p style={{ fontSize: "0.9rem", lineHeight: "1.5", opacity: 0.9, marginBottom: "0.5rem" }}>
                   <strong>1. Badge in Tempo Reale:</strong> Inserendo una spesa manualmente o scansionando uno scontrino, vedrai comparire un avviso in tempo reale con l&apos;esatto importo deducibile (es: amount * deductibilityRate) calcolato matematicamente al volo.
                 </p>
@@ -738,9 +780,9 @@ export default function Dashboard() {
                   </div>
 
                   <div style={{ marginBottom: "12px", background: "white", padding: "10px", borderRadius: "8px", color: "black" }}>
-                    <span style={{ color: "black", fontWeight: "800", display: "flex", alignItems: "center", gap: "6px" }}>🏛️ ONERI DEDUCIBILI DALL'IRPEF</span>
-                    <p style={{ marginTop: "4px", marginBottom: 0 }}>
-                      <strong>Cassa Forense:</strong> Il Contributo Soggettivo non è un costo dello studio ma un Onerere. Questo gestionale scala il 100% dei contributi versati (Categoria: Tasse) direttamente dall'IRPEF, abbassando notevolmente le tasse matematiche al volo sulle tue fatture d'incasso!
+                    <span style={{ color: "black", fontWeight: "800", display: "flex", alignItems: "center", gap: "6px" }}>🏛️ CASSA FORENSE (CONTRIBUTO SOGGETTIVO)</span>
+                    <p style={{ marginTop: "4px", marginBottom: 0, fontSize: "0.9rem" }}>
+                       La Cassa Forense viene calcolata in modo progressivo sul Reddito Netto: <strong>17%</strong> fino al tetto di 135.000€, e <strong>3%</strong> sull'eccedenza. Ai fini IRPEF è un onere deducibile (abbassa la base imponibile). Esiste un minimale fisso annuo di circa 3.600€ che occorre versare indipendentemente dai ricavi, indicato nell'apposito Alert quando non si raggiunge tale Target.
                     </p>
                   </div>
 
