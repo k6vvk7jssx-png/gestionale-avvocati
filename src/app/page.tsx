@@ -5,7 +5,7 @@ import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { dark } from "@clerk/themes";
-import { Scale, ChevronDown, CheckCircle2, Calculator, ShieldCheck, Mail, ArrowRight, Zap, PieChart, Coins, Sparkles, Lock, ScanLine } from "lucide-react";
+import { Scale, ChevronDown, CheckCircle2, Calculator, ShieldCheck, Mail, ArrowRight, Zap, PieChart, Coins, Sparkles, Lock, FileSpreadsheet } from "lucide-react";
 
 export default function Home() {
   const { isLoaded, isSignedIn } = useUser();
@@ -287,10 +287,10 @@ export default function Home() {
 
             <div className="bg-[#18212f] p-8 rounded-3xl border border-white/5 hover:border-[#007AFF]/30 transition-all group">
               <div className="bg-[#007AFF]/10 w-14 h-14 rounded-2xl flex items-center justify-center mb-6 text-[#007AFF] group-hover:scale-110 transition-transform">
-                <ScanLine className="w-7 h-7" />
+                <FileSpreadsheet className="w-7 h-7" />
               </div>
-              <h3 className="text-xl font-bold text-white mb-3 tracking-tight">Scansione Spese Locale</h3>
-              <p className="text-slate-400 leading-relaxed text-sm">Fotografa la ricevuta. Il nostro OCR integrato funziona sul tuo dispositivo (Edge AI), estraendo dati sensibili senza mai inviarli su cloud esterni.</p>
+              <h3 className="text-xl font-bold text-white mb-3 tracking-tight">Esportazione Commercialista</h3>
+              <p className="text-slate-400 leading-relaxed text-sm">Scarica con un clic un report Excel perfetto. 3 fogli separati per Fatture, Spese Deducibili e Riepilogo Fiscale con Cassa Forense pre-calcolata.</p>
             </div>
 
             <div className="bg-[#18212f] p-8 rounded-3xl border border-white/5 hover:border-purple-500/30 transition-all group lg:col-start-auto md:col-start-1 md:col-span-2 lg:col-span-1">
