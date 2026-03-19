@@ -186,110 +186,98 @@ export default function Dashboard() {
         });
       }
 
-      // 3. Calcolo Finanziario Combinato (Entrate e Tasse)
-      totTasseAccantonate = 0;
+      // 3. Determinazione Regime Attuale
+      let isRegimeOrdinario = false;
+      if (profile && profile.regime_fiscale === "ordinario") isRegimeOrdinario = true;
+      else if (localStorage.getItem("regime_fiscale_generale") === "ordinario") isRegimeOrdinario = true;
 
-      let ordTotImponibileLordo = 0;
+      // 4. Calcolo Finanziario Combinato aggregato
+      let lordoIncassato = 0;
       let ordTotCpa = 0;
       let ordTotIva = 0;
       let ordTotRitenuta = 0;
 
       if (cause) {
         cause.forEach(c => {
-          const tipoFiscale = c.tipologia_fiscale || "forfettario_15";
+          // Compenso + SpeseGenerali
+          const compensoPuro = Number(c.compenso_base || c.compenso_lordo || 0);
+          const speseGenerali = compensoPuro * 0.15;
+          const imponibileLordo = compensoPuro + speseGenerali;
 
-          if (tipoFiscale === "forfettario_5" || tipoFiscale === "forfettario_15") {
-            // Modello FORFETTARIO
-            const compensoPuro = Number(c.compenso_base || c.compenso_lordo || 0);
-            const speseGenerali = compensoPuro * 0.15;
-            const redditoImponibileLordo = (compensoPuro + speseGenerali) * 0.78;
-
-            const secchio1_cpa = c.cpa_4 ? Number(c.cpa_4) : (compensoPuro + speseGenerali) * 0.04;
-            const secchio2_cassa = redditoImponibileLordo * 0.17;
-
-            const baseImponibileNetta = Math.max(0, redditoImponibileLordo - secchio2_cassa);
-            const aliquotaFisco = tipoFiscale === "forfettario_5" ? 0.05 : 0.15;
-            const secchio3_imposta = baseImponibileNetta * aliquotaFisco;
-
-            totTasseAccantonate += (secchio1_cpa + secchio2_cassa + secchio3_imposta);
-
-          } else if (tipoFiscale === "ordinario") {
-            // Modello ORDINARIO: Aggreghiamo e tassiamo tutto insieme per permettere la deduzione globale
-            const compensoPuro = Number(c.compenso_base || c.compenso_lordo || 0);
-            const speseGenerali = compensoPuro * 0.15;
-            const imponibileLordo = compensoPuro + speseGenerali;
-
-            ordTotImponibileLordo += imponibileLordo;
-            ordTotCpa += c.cpa_4 ? Number(c.cpa_4) : imponibileLordo * 0.04;
-            ordTotIva += c.iva_22 ? Number(c.iva_22) : (imponibileLordo + (c.cpa_4 ? Number(c.cpa_4) : imponibileLordo * 0.04)) * 0.22;
-            ordTotRitenuta += c.ritenuta_20 ? Number(c.ritenuta_20) : imponibileLordo * 0.20;
-          } else if (tipoFiscale === "free") {
-            totTasseAccantonate += 0;
-          }
+          lordoIncassato += imponibileLordo;
+          ordTotCpa += c.cpa_4 ? Number(c.cpa_4) : imponibileLordo * 0.04;
+          ordTotIva += c.iva_22 ? Number(c.iva_22) : (imponibileLordo + (c.cpa_4 ? Number(c.cpa_4) : imponibileLordo * 0.04)) * 0.22;
+          ordTotRitenuta += c.ritenuta_20 ? Number(c.ritenuta_20) : imponibileLordo * 0.20;
         });
       }
 
-      // EPICA 3: Calcolo Deduzioni Esatte per Ordinario
-      let deducibilitaSpeseContext = 0;
-      let deducibilitaOneriContext = 0; // Cassa Forense
+      // 5. Calcolo Totale Spese Deducibili REALI (iterando sulle uscite)
+      // Manteniamo rigoroso il vincolo: nessun mock, solo transazioni dal DB.
+      let totaleSpeseDeducibili = 0;
 
-      ctxExpenses.forEach(e => {
-        let rate = 0;
-        let isOnere = false;
-        switch (e.category) {
-          case "Lavoro": case "Cancelleria": case "Software": case "Spese Clienti": case "Rappresentanza": case "Formazione": case "Abbigliamento":
-            rate = 1.0; break;
-          case "Telefonia":
-            rate = 0.80; break;
-          case "Ristoranti":
-            rate = 0.75; break;
-          case "Utenze": case "Affitto":
-            rate = 0.50; break;
-          case "Auto/Trasporti": case "Carburante": case "Viaggi":
-            rate = 0.20; break;
-          case "Tasse":
-            rate = 1.0; isOnere = true; break;
+      if (uscite) {
+        uscite.forEach(u => {
+          let rate = 0;
+          switch (u.categoria) {
+            case "Lavoro": case "Cancelleria": case "Software": case "Spese Clienti": case "Rappresentanza": case "Formazione": case "Abbigliamento":
+              rate = 1.0; break;
+            case "Telefonia":
+              rate = 0.80; break;
+            case "Ristoranti": case "Ristoranti / Trasferte":
+              rate = 0.75; break;
+            case "Utenze": case "Affitto":
+              rate = 0.50; break;
+            case "Auto/Trasporti": case "Carburante": case "Viaggi":
+              rate = 0.20; break;
+            case "Tasse":
+              rate = 1.0; break;
+          }
+          totaleSpeseDeducibili += (Number(u.importo) * rate);
+        });
+      }
+
+      // 6. Logica Bivio Regime e Calcolo Tasse Aggregato
+      totTasseAccantonate = 0;
+      let totRitenute = ordTotRitenuta;
+
+      if (lordoIncassato > 0) {
+        if (!isRegimeOrdinario) {
+          // --- FORFETTARIO ---
+          // L'Imponibile Fiscale è uguale al Lordo Incassato moltiplicato per 0.78
+          const imponibileFiscale = lordoIncassato * 0.78;
+          
+          const cassaForense = imponibileFiscale * 0.17;
+          const baseImposta = Math.max(0, imponibileFiscale - cassaForense);
+          
+          // Prendi la % forfettario dal profilo (default 15%)
+          const aliquotaSostitutiva = (profile && profile.regime_fiscale === "forfettario_5") ? 0.05 : 0.15;
+          const impostaSostitutiva = baseImposta * aliquotaSostitutiva;
+
+          totTasseAccantonate = ordTotCpa + cassaForense + impostaSostitutiva;
+
+        } else {
+          // --- ORDINARIO ---
+          // Imponibile Fiscale = (Lordo Incassato - Totale Spese Deducibili)
+          const imponibileFiscale = Math.max(0, lordoIncassato - totaleSpeseDeducibili);
+
+          const cassaForense = imponibileFiscale * 0.17;
+          
+          // L'IRPEF si applica sull'imponibile al netto della cassa forense
+          const baseIrpef = Math.max(0, imponibileFiscale - cassaForense);
+          const percentualeIrpef = currentScaglione / 100.0;
+          const irpefLorda = baseIrpef * percentualeIrpef;
+
+          const irpefDaVersare = Math.max(0, irpefLorda - ordTotRitenuta);
+
+          // Fondo Tasse Virt. include anche IVA versata in ordinario
+          totTasseAccantonate = ordTotCpa + cassaForense + ordTotIva + irpefDaVersare;
         }
-        if (isOnere) deducibilitaOneriContext += (e.amount * rate);
-        else deducibilitaSpeseContext += (e.amount * rate);
-      });
-
-      // === CORE MATH LOGIC (Ordinario) ===
-      let totRitenute = 0;
-      if (ordTotImponibileLordo > 0) {
-        const speseDeducibiliTotali = totUsciteDeducibili + deducibilitaSpeseContext;
-
-        // CassaTotale = CPA + CassaSoggettivo
-        const cassaSoggettivo = ordTotImponibileLordo * 0.17;
-        const cassaTotale = ordTotCpa + cassaSoggettivo;
-
-        // ImponibileIrpef = (Compenso + SpeseGenerali) - CassaSoggettivo - SpeseDeducibili - OneriDeducibili
-        const imponibileIrpef = Math.max(0, ordTotImponibileLordo - cassaSoggettivo - speseDeducibiliTotali - deducibilitaOneriContext);
-
-        const percentualeIrpef = currentScaglione / 100.0;
-        const irpefLorda = imponibileIrpef * percentualeIrpef;
-
-        // IrpefDaVersare = max(0, IrpefLorda - Ritenuta)
-        const irpefDaVersare = Math.max(0, irpefLorda - ordTotRitenuta);
-
-        // FiscoDaVersare = IVA + IrpefDaVersare
-        const fiscoDaVersare = ordTotIva + irpefDaVersare;
-
-        // Spicchio 2 (Fondo Tasse Virt.) = FiscoDaVersare + CassaTotale
-        totTasseAccantonate += (fiscoDaVersare + cassaTotale);
-
-        // Le ritenute vanno in uno spicchio separato
-        totRitenute = ordTotRitenuta;
       }
 
       // Applica un safety cap
       if (totTasseAccantonate < 0) totTasseAccantonate = 0;
 
       // EPICA 4: Calcolo YTD (Year-To-Date) per Limite 2% Ristoranti/Trasferte solo per Ordinario
-      let isRegimeOrdinario = false;
-      if (profile && profile.regime_fiscale === "ordinario") isRegimeOrdinario = true;
-      else if (localStorage.getItem("regime_fiscale_generale") === "ordinario") isRegimeOrdinario = true;
-
       setRegimeCorrente(isRegimeOrdinario ? "ordinario" : "forfettario");
 
       if (isRegimeOrdinario) {
