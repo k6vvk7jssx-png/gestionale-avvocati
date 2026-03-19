@@ -3,97 +3,199 @@
 import { useState } from "react";
 import * as XLSX from "xlsx";
 import { FileSpreadsheet, Download, Loader2 } from "lucide-react";
+import { useUser, useSession } from "@clerk/nextjs";
+import { createClient } from "@supabase/supabase-js";
+import { getProfiloAction } from "@/app/impostazioni/actions";
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
 export default function ExportCommercialistaButton() {
     const [isExporting, setIsExporting] = useState(false);
+    const { user } = useUser();
+    const { session } = useSession();
+
+    const getSupabase = () => {
+        return createClient(supabaseUrl, supabaseKey, {
+            global: {
+                fetch: async (url, options = {}) => {
+                    let clerkToken;
+                    try {
+                        clerkToken = await session?.getToken({ template: 'supabase' });
+                    } catch {
+                        clerkToken = await session?.getToken();
+                    }
+                    const headers = new Headers(options?.headers);
+                    if (clerkToken) headers.set('Authorization', `Bearer ${clerkToken}`);
+                    return fetch(url, { ...options, headers, cache: 'no-store' });
+                },
+            },
+        });
+    };
 
     const handleExport = async () => {
+        if (!user) {
+            alert("Utente non autenticato.");
+            return;
+        }
+
         setIsExporting(true);
 
         try {
-            // Simuliamo un ritardo di rete/elaborazione dati dal DB
-            await new Promise(resolve => setTimeout(resolve, 1500));
+            const supabase = getSupabase();
+            const today = new Date();
+            const startOfYear = `${today.getFullYear()}-01-01`;
 
-            // --- FOGLIO 1: SPESE (MOCK DATA) ---
-            const speseData = [
-                {
-                    "Data Spesa": "2026-03-01",
-                    "Descrizione / Fornitore": "Cena Ristorante Da Mario",
-                    "Categoria Fiscale": "Ristoranti",
-                    "Importo Lordo Speso (€)": 150.00,
-                    "% di Deducibilità Legale": "75%",
-                    "Importo Deducibile Calcolato (€)": 112.50
-                },
-                {
-                    "Data Spesa": "2026-03-05",
-                    "Descrizione / Fornitore": "Cancelleria Buffetti",
-                    "Categoria Fiscale": "Cancelleria",
-                    "Importo Lordo Speso (€)": 45.00,
-                    "% di Deducibilità Legale": "100%",
-                    "Importo Deducibile Calcolato (€)": 45.00
-                },
-                {
-                    "Data Spesa": "2026-03-10",
-                    "Descrizione / Fornitore": "Pieno Benzina IP",
-                    "Categoria Fiscale": "Auto",
-                    "Importo Lordo Speso (€)": 60.00,
-                    "% di Deducibilità Legale": "20%",
-                    "Importo Deducibile Calcolato (€)": 12.00
-                },
-                {
-                    "Data Spesa": "2026-03-12",
-                    "Descrizione / Fornitore": "Bolletta TIM Fibra Studio",
-                    "Categoria Fiscale": "Utenze/Tel",
-                    "Importo Lordo Speso (€)": 50.00,
-                    "% di Deducibilità Legale": "80%",
-                    "Importo Deducibile Calcolato (€)": 40.00
-                }
-            ];
+            // 1. Fetch Regime Fiscale
+            const profiloResult = await getProfiloAction();
+            const profile = profiloResult.data;
+            let isRegimeOrdinario = false;
+            let regimeName = "Forfettario";
+            
+            if (profile && profile.regime_fiscale === "ordinario") {
+                isRegimeOrdinario = true;
+                regimeName = "Ordinario";
+            } else if (localStorage.getItem("regime_fiscale_generale") === "ordinario") {
+                isRegimeOrdinario = true;
+                regimeName = "Ordinario";
+            }
 
-            // --- FOGLIO 2: FATTURE EMESSE (MOCK DATA) ---
-            const fattureData = [
-                {
-                    "Data Incasso": "2026-03-02",
-                    "Cliente / Pratica": "Rossi c. Bianchi",
-                    "Compenso Lordo (€)": 2000.00,
-                    "Cassa Forense 4% (€)": 80.00,
-                    "Totale Imponibile (€)": 2080.00
-                },
-                {
-                    "Data Incasso": "2026-03-08",
-                    "Cliente / Pratica": "Azienda Alfa Spa",
-                    "Compenso Lordo (€)": 4500.00,
-                    "Cassa Forense 4% (€)": 180.00,
-                    "Totale Imponibile (€)": 4680.00
-                },
-                {
-                    "Data Incasso": "2026-03-09",
-                    "Cliente / Pratica": "Consulenza Verdi",
-                    "Compenso Lordo (€)": 800.00,
-                    "Cassa Forense 4% (€)": 32.00,
-                    "Totale Imponibile (€)": 832.00
+            // 2. Fetch Fatture (Entrate YTD)
+            const { data: cause, error: errCause } = await supabase
+                .from('cause')
+                .select('*')
+                .eq('user_id', user.id)
+                .gte('data_sentenza', startOfYear)
+                .order('data_sentenza', { ascending: true });
+
+            if (errCause) throw errCause;
+
+            // 3. Fetch Spese (Uscite YTD)
+            const { data: transazioni, error: errTransazioni } = await supabase
+                .from('transazioni')
+                .select('*')
+                .eq('user_id', user.id)
+                .eq('tipo', 'uscita')
+                .gte('data_transazione', startOfYear)
+                .order('data_transazione', { ascending: true });
+
+            if (errTransazioni) throw errTransazioni;
+
+            // --- FOGLIO 1: FATTURE EMESSE ---
+            let totaleIncassato = 0; // Compenso + Spese Generali
+            
+            const fattureData = (cause || []).map(c => {
+                const dataFattura = c.data_sentenza ? new Date(c.data_sentenza).toLocaleDateString() : "N/D";
+                const cliente = c.cliente || c.titolo || "N/D";
+                const compenso = Number(c.compenso_base || c.compenso_lordo || 0);
+                const speseGenerali = compenso * 0.15;
+                const imponibileLordo = compenso + speseGenerali;
+                
+                totaleIncassato += imponibileLordo;
+
+                const cpa = c.cpa_4 ? Number(c.cpa_4) : imponibileLordo * 0.04;
+                const iva = c.iva_22 ? Number(c.iva_22) : (imponibileLordo + cpa) * 0.22;
+                const totaleLordo = imponibileLordo + cpa + iva;
+
+                return {
+                    "Data": dataFattura,
+                    "Cliente / Pratica": cliente,
+                    "Compenso (€)": compenso.toFixed(2),
+                    "Spese Generali (15%) (€)": speseGenerali.toFixed(2),
+                    "CPA (€)": cpa.toFixed(2),
+                    "IVA (€)": iva.toFixed(2),
+                    "Totale Lordo Fattura (€)": totaleLordo.toFixed(2)
+                };
+            });
+
+            // --- FOGLIO 2: SPESE SOSTENUTE ---
+            let totaleSpeseDeducibili = 0;
+
+            const speseData = (transazioni || []).map(t => {
+                const dataSpesa = t.data_transazione ? new Date(t.data_transazione).toLocaleDateString() : "N/D";
+                const fornitore = t.descrizione || "N/D";
+                const categoria = t.categoria || "Altro";
+                // L'importo reale immesso
+                const importo = Number(t.importo || 0);
+
+                let rate = 0;
+                switch (categoria) {
+                    case "Lavoro": case "Cancelleria": case "Software": case "Spese Clienti": case "Rappresentanza": case "Formazione": case "Abbigliamento": case "Toga":
+                        rate = 1.0; break;
+                    case "Telefonia":
+                        rate = 0.80; break;
+                    // Mappa entrambe le varianti
+                    case "Ristoranti": case "Ristoranti / Trasferte":
+                        rate = 0.75; break;
+                    case "Utenze": case "Affitto":
+                        rate = 0.50; break;
+                    case "Auto/Trasporti": case "Carburante": case "Viaggi": case "Auto":
+                        rate = 0.20; break;
+                    case "Tasse":
+                        rate = 1.0; break;
                 }
+
+                const importoDeducibile = isRegimeOrdinario ? (importo * rate) : 0;
+                totaleSpeseDeducibili += importoDeducibile;
+
+                return {
+                    "Data": dataSpesa,
+                    "Fornitore / Descrizione": fornitore,
+                    "Categoria": categoria,
+                    "Importo Speso (€)": importo.toFixed(2),
+                    "% Deducibilità": isRegimeOrdinario ? `${(rate * 100).toFixed(0)}%` : "N/A",
+                    "Importo Deducibile Netto (€)": importoDeducibile.toFixed(2)
+                };
+            });
+
+            // --- FOGLIO 3: RIEPILOGO FISCALE ---
+            let imponibileFiscale = 0;
+            if (isRegimeOrdinario) {
+                imponibileFiscale = Math.max(0, totaleIncassato - totaleSpeseDeducibili);
+            } else {
+                imponibileFiscale = totaleIncassato * 0.78;
+            }
+
+            const CASSA_ALIQUOTA_BASE = 0.17;
+            const CASSA_ALIQUOTA_ECCEDENZA = 0.03;
+            const CASSA_TETTO = 135000;
+
+            let cassaTeorica = 0;
+            if (imponibileFiscale <= CASSA_TETTO) {
+                cassaTeorica = imponibileFiscale * CASSA_ALIQUOTA_BASE;
+            } else {
+                cassaTeorica = (CASSA_TETTO * CASSA_ALIQUOTA_BASE) + ((imponibileFiscale - CASSA_TETTO) * CASSA_ALIQUOTA_ECCEDENZA);
+            }
+
+            const riepilogoData = [
+                { "Voce": "Totale Incassato (Compenso + Spese Generali)", "Valore": `€ ${totaleIncassato.toFixed(2)}` },
+                { "Voce": "Regime Fiscale Applicato", "Valore": regimeName },
+                { "Voce": "Totale Spese Deducibili Applicate", "Valore": isRegimeOrdinario ? `€ ${totaleSpeseDeducibili.toFixed(2)}` : "€ 0.00 (Forfettario)" },
+                { "Voce": "Imponibile Fiscale Calcolato", "Valore": `€ ${imponibileFiscale.toFixed(2)}` },
+                { "Voce": "Cassa Forense Teorica (Maturata)", "Valore": `€ ${cassaTeorica.toFixed(2)}` },
+                { "Voce": "Alert Minimale", "Valore": "Nota: Contributo Soggettivo Minimo di Legge ~3.600€ annui" }
             ];
 
             // 1. Crea in memoria un nuovo Workbook Excel
             const wb = XLSX.utils.book_new();
 
-            // 2. Converte l'array di oggetti in un formato foglio gestibile da Sheets
-            const wsSpese = XLSX.utils.json_to_sheet(speseData);
-            const wsFatture = XLSX.utils.json_to_sheet(fattureData);
+            // 2. Converte l'array di oggetti in fogli gestibili
+            const wsFatture = fattureData.length > 0 ? XLSX.utils.json_to_sheet(fattureData) : XLSX.utils.json_to_sheet([{"Messaggio": "Nessuna fattura trovata quest'anno"}]);
+            const wsSpese = speseData.length > 0 ? XLSX.utils.json_to_sheet(speseData) : XLSX.utils.json_to_sheet([{"Messaggio": "Nessuna spesa trovata quest'anno"}]);
+            const wsRiepilogo = XLSX.utils.json_to_sheet(riepilogoData);
 
-            // Larghezze colonne ottimizzate (approx. caratteri)
-            wsSpese['!cols'] = [{ wch: 12 }, { wch: 30 }, { wch: 15 }, { wch: 22 }, { wch: 25 }, { wch: 30 }];
-            wsFatture['!cols'] = [{ wch: 12 }, { wch: 30 }, { wch: 20 }, { wch: 22 }, { wch: 22 }];
+            // Larghezze colonne ottimizzate
+            wsFatture['!cols'] = [{ wch: 12 }, { wch: 30 }, { wch: 15 }, { wch: 22 }, { wch: 12 }, { wch: 12 }, { wch: 22 }];
+            wsSpese['!cols'] = [{ wch: 12 }, { wch: 35 }, { wch: 20 }, { wch: 20 }, { wch: 15 }, { wch: 25 }];
+            wsRiepilogo['!cols'] = [{ wch: 60 }, { wch: 30 }];
 
             // 3. Aggiunge i fogli creati al Workbook con i nomi richiesti
-            XLSX.utils.book_append_sheet(wb, wsSpese, "Spese_Trimestre");
             XLSX.utils.book_append_sheet(wb, wsFatture, "Fatture_Emesse");
+            XLSX.utils.book_append_sheet(wb, wsSpese, "Spese_Sostenute");
+            XLSX.utils.book_append_sheet(wb, wsRiepilogo, "Riepilogo_Fiscale");
 
             // 4. Salva il file forzando il download sul browser del cliente
-            // Formattiamo il nome del file con data corrente
-            const today = new Date().toISOString().split('T')[0];
-            XLSX.writeFile(wb, `Export_Commercialista_${today}.xlsx`);
+            XLSX.writeFile(wb, `Export_Fiscale_LexTax.xlsx`);
 
         } catch (error) {
             console.error("Errore durante l'export in Excel:", error);
