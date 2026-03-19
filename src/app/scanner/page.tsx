@@ -1,10 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useExpenseContext } from "@/context/ExpenseContext";
 import { motion } from "framer-motion";
 import { Delete, Calculator } from "lucide-react";
+import { useUser, useSession } from "@clerk/nextjs";
+import { createClient } from "@supabase/supabase-js";
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
 const TUTTE_CATEGORIE = [
     { id: "Alimenti", label: "Alimenti", deducibilita: "0%" },
@@ -33,10 +38,32 @@ export default function AggiungiSpesa() {
     const router = useRouter();
     const { regime, addExpense } = useExpenseContext();
 
+    const { user } = useUser();
+    const { session } = useSession();
+
     const [amount, setAmount] = useState<string>("0");
     const [selectedCategory, setSelectedCategory] = useState<string>("Cancelleria");
     const [description, setDescription] = useState<string>("");
     const [isSuccess, setIsSuccess] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
+
+    const getSupabase = useCallback(() => {
+        return createClient(supabaseUrl, supabaseKey, {
+            global: {
+                fetch: async (url, options = {}) => {
+                    let clerkToken;
+                    try {
+                        clerkToken = await session?.getToken({ template: 'supabase' });
+                    } catch {
+                        clerkToken = await session?.getToken();
+                    }
+                    const headers = new Headers(options?.headers);
+                    if (clerkToken) headers.set('Authorization', `Bearer ${clerkToken}`);
+                    return fetch(url, { ...options, headers, cache: 'no-store' });
+                },
+            },
+        });
+    }, [session]);
 
     const handleKeyPress = (key: string) => {
         setAmount((prev) => {
@@ -65,27 +92,56 @@ export default function AggiungiSpesa() {
         });
     };
 
-    const handleSave = () => {
+    const handleSave = async () => {
         if (amount === "0" || amount === "0,") {
             alert("Inserisci un importo valido.");
             return;
         }
 
         const parsedAmount = parseFloat(amount.replace(',', '.'));
+        setIsSaving(true);
 
-        addExpense({
-            amount: parsedAmount,
-            category: selectedCategory,
-            description: description.trim()
-        });
+        try {
+            const supabase = getSupabase();
+            const { error } = await supabase
+                .from('transazioni')
+                .insert([{
+                    user_id: user?.id,
+                    importo: parsedAmount,
+                    categoria: selectedCategory,
+                    descrizione: description.trim(),
+                    data_transazione: new Date().toISOString().split('T')[0], // formato YYYY-MM-DD
+                    tipo: 'uscita',
+                }]);
 
-        setIsSuccess(true);
-        setTimeout(() => {
-            setIsSuccess(false);
-            setAmount("0");
-            setDescription("");
-            router.push("/dashboard");
-        }, 800);
+            if (error) {
+                console.error("Errore inserimento Supabase:", error);
+                alert("Errore durante il salvataggio: " + error.message);
+                setIsSaving(false);
+                return;
+            }
+
+            // Ottimistico per React Context (se usato altrove istantaneamente)
+            addExpense({
+                amount: parsedAmount,
+                category: selectedCategory,
+                description: description.trim()
+            });
+
+            setIsSuccess(true);
+            setTimeout(() => {
+                setIsSuccess(false);
+                setAmount("0");
+                setDescription("");
+                setIsSaving(false);
+                router.refresh(); // Invalida la cache di Next.js
+                router.push("/dashboard"); // Naviga alla dashboard che caricherà i nuovi dati
+            }, 800);
+        } catch (err: any) {
+            console.error("Errore imprevisto:", err);
+            alert("Si è verificato un errore imprevisto.");
+            setIsSaving(false);
+        }
     };
 
     return (
@@ -234,9 +290,10 @@ export default function AggiungiSpesa() {
                         <motion.button
                             whileTap={{ scale: 0.97 }}
                             onClick={handleSave}
-                            className="w-full bg-[#007AFF] hover:bg-[#007AFF]/90 text-white font-bold text-lg py-5 rounded-2xl shadow-[0_0_20px_rgba(0,122,255,0.4)] transition-all flex items-center justify-center gap-2"
+                            disabled={isSaving}
+                            className={`w-full bg-[#007AFF] hover:bg-[#007AFF]/90 text-white font-bold text-lg py-5 rounded-2xl shadow-[0_0_20px_rgba(0,122,255,0.4)] transition-all flex items-center justify-center gap-2 ${isSaving ? 'opacity-50 cursor-not-allowed' : ''}`}
                         >
-                            Registra Spesa
+                            {isSaving ? "Salvataggio..." : "Registra Spesa"}
                         </motion.button>
                     </>
                 )}
