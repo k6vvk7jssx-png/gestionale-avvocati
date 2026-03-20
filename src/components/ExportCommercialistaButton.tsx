@@ -195,7 +195,7 @@ export default function ExportCommercialistaButton() {
             XLSX.utils.book_append_sheet(wb, wsRiepilogo, "Riepilogo_Fiscale");
 
             // 4. Salva il file forzando il download sul browser del cliente
-            XLSX.writeFile(wb, `Export_Fiscale_LexTax.xlsx`);
+            XLSX.writeFile(wb, `Export_Fiscale_StateraLex.xlsx`);
 
         } catch (error) {
             console.error("Errore durante l'export in Excel:", error);

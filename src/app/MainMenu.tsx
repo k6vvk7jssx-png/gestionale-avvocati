@@ -109,7 +109,7 @@ export default function MainMenu({ isCollapsed = false, setIsCollapsed }: MainMe
 
                 {/* Logo Area */}
                 <div className={`h-16 flex items-center border-b border-white/5 transition-all duration-300 ${isCollapsed ? 'justify-center px-0' : 'justify-between px-6'}`}>
-                    {!isCollapsed && <span className="text-lg font-bold tracking-tighter text-white">LexTax</span>}
+                    {!isCollapsed && <span className="text-lg font-bold tracking-tighter text-white">StateraLex</span>}
                     {setIsCollapsed && (
                         <button 
                             onClick={() => setIsCollapsed(!isCollapsed)}

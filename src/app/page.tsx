@@ -14,6 +14,7 @@ export default function Home() {
   // Simulatore State
   const [simLordo, setSimLordo] = useState<string>("50000");
   const [simRegime, setSimRegime] = useState<"forfettario_5" | "forfettario_15" | "ordinario">("forfettario_15");
+  const [simScaglione, setSimScaglione] = useState<number>(43);
 
   useEffect(() => {
     if (isLoaded && isSignedIn) {
@@ -23,55 +24,67 @@ export default function Home() {
 
   // Simulatore Fiscale Logica
   const calcoloSimulatore = useMemo(() => {
-    const lordo = parseFloat(simLordo) || 0;
+    const importoLordo = parseFloat(simLordo) || 0;
 
     const CASSA_ALIQUOTA_BASE = 0.17;
     const CASSA_ALIQUOTA_ECCEDENZA = 0.03;
     const CASSA_TETTO = 135000;
 
     if (simRegime.startsWith("forfettario")) {
-      const imponibileLordo = lordo * 0.78; // Coeff redditività avvocati forfait
+      const compensoBase = importoLordo;
+      const speseGenerali = compensoBase * 0.15;
+      const redditoImponibileLordo = (compensoBase + speseGenerali) * 0.78;
       
       let cassaSoggettivo = 0;
-      if (imponibileLordo <= CASSA_TETTO) {
-        cassaSoggettivo = imponibileLordo * CASSA_ALIQUOTA_BASE;
+      if (redditoImponibileLordo <= CASSA_TETTO) {
+        cassaSoggettivo = redditoImponibileLordo * CASSA_ALIQUOTA_BASE;
       } else {
-        cassaSoggettivo = (CASSA_TETTO * CASSA_ALIQUOTA_BASE) + ((imponibileLordo - CASSA_TETTO) * CASSA_ALIQUOTA_ECCEDENZA);
+        cassaSoggettivo = (CASSA_TETTO * CASSA_ALIQUOTA_BASE) + ((redditoImponibileLordo - CASSA_TETTO) * CASSA_ALIQUOTA_ECCEDENZA);
       }
 
-      const baseNetta = Math.max(0, imponibileLordo - cassaSoggettivo);
+      const cpa = (compensoBase + speseGenerali) * 0.04;
+      const cassaTotale = cassaSoggettivo + cpa;
+
+      const baseImponibileNetta = redditoImponibileLordo - cassaSoggettivo;
       const aliquota = simRegime === "forfettario_5" ? 0.05 : 0.15;
-      const tasse = baseNetta * aliquota;
+      const tasse = baseImponibileNetta * aliquota;
 
-      const nettoStima = lordo - tasse - cassaSoggettivo;
-      return { tasse, cassa: cassaSoggettivo, netto: nettoStima };
+      const volumeAffariLordo = compensoBase + speseGenerali + cpa;
+      const nettoStima = volumeAffariLordo - tasse - cassaTotale;
+      return { tasse, cassa: cassaTotale, netto: nettoStima };
     } else {
-      // Ordinario Semplificato (senza spese deducibili inserite)
-      const imponibile = lordo;
-      
-      let cassaSoggettivo = 0;
-      if (imponibile <= CASSA_TETTO) {
-        cassaSoggettivo = imponibile * CASSA_ALIQUOTA_BASE;
-      } else {
-        cassaSoggettivo = (CASSA_TETTO * CASSA_ALIQUOTA_BASE) + ((imponibile - CASSA_TETTO) * CASSA_ALIQUOTA_ECCEDENZA);
-      }
+      // Ordinario
+      const compensoBase = importoLordo;
+      const speseGenerali = compensoBase * 0.15;
+      const imponibileLordo = compensoBase + speseGenerali;
+      const speseDeducibili = 0;
 
-      const baseIrpef = Math.max(0, imponibile - cassaSoggettivo);
-      
-      // Simulazione Scaglioni IRPEF 2024 (23% fino a 28k, 35% fino a 50k, 43% oltre)
-      let tasse = 0;
-      if (baseIrpef <= 28000) {
-        tasse = baseIrpef * 0.23;
-      } else if (baseIrpef <= 50000) {
-        tasse = (28000 * 0.23) + ((baseIrpef - 28000) * 0.35);
+      const imponibileCassa = Math.max(0, imponibileLordo - speseDeducibili);
+      let cassaSoggettiva = 0;
+      if (imponibileCassa <= CASSA_TETTO) {
+          cassaSoggettiva = imponibileCassa * CASSA_ALIQUOTA_BASE;
       } else {
-        tasse = (28000 * 0.23) + (22000 * 0.35) + ((baseIrpef - 50000) * 0.43);
+          cassaSoggettiva = (CASSA_TETTO * CASSA_ALIQUOTA_BASE) + ((imponibileCassa - CASSA_TETTO) * CASSA_ALIQUOTA_ECCEDENZA);
       }
+      const cpa = imponibileLordo * 0.04;
+      const cassaTotale = cassaSoggettiva + cpa;
 
-      const nettoStima = lordo - tasse - cassaSoggettivo;
-      return { tasse, cassa: cassaSoggettivo, netto: nettoStima };
+      const ivaDaVersare = (imponibileLordo + cpa) * 0.22;
+      const ritenutaScontata = imponibileLordo * 0.20;
+
+      const imponibileIrpef = Math.max(0, imponibileCassa - cassaSoggettiva);
+      const irpefLorda = imponibileIrpef * (simScaglione / 100.0);
+      const irpefaSaldo = Math.max(0, irpefLorda - ritenutaScontata);
+
+      const addizionali = imponibileIrpef * 0.03;
+      const tasse = ivaDaVersare + irpefaSaldo + addizionali;
+
+      const volumeAffariLordo = imponibileLordo + cpa + ivaDaVersare;
+      const nettoStima = volumeAffariLordo - tasse - cassaTotale - ritenutaScontata - speseDeducibili;
+
+      return { tasse, cassa: cassaTotale, netto: nettoStima };
     }
-  }, [simLordo, simRegime]);
+  }, [simLordo, simRegime, simScaglione]);
 
   if (!isLoaded || isSignedIn) {
     return (
@@ -98,7 +111,7 @@ export default function Home() {
           <div className="bg-[#007AFF] p-2 rounded-xl shadow-lg shadow-[#007AFF]/20">
             <Scale className="w-6 h-6 text-white" strokeWidth={2} />
           </div>
-          <span className="text-xl font-bold tracking-tight text-white hidden sm:block">LexTax</span>
+          <span className="text-xl font-bold tracking-tight text-white hidden sm:block">StateraLex</span>
         </div>
         <div className="flex items-center gap-4">
           {/* Mobile view only standard sign_in link, using NextJS native or Clerk native routing */}
@@ -135,8 +148,9 @@ export default function Home() {
             transition={{ duration: 0.6, delay: 0.1 }}
             className="text-5xl md:text-6xl lg:text-[4.5rem] font-extrabold tracking-tight leading-[1.1] text-white mb-6"
           >
-            Il tuo cloud merita di più. <br />
-            Passa a <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#007AFF] to-[#00bfff]">LexTax</span>.
+            Scopri quanto guadagni davvero. <br />
+            Smetti di temere l'F24. <br />
+            Passa a <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#007AFF] to-[#00bfff]">StateraLex</span>.
           </motion.h1>
 
           <motion.p
@@ -233,6 +247,26 @@ export default function Home() {
                 </div>
               </div>
 
+              {simRegime === 'ordinario' && (
+                <div className="animate-in fade-in slide-in-from-top-2 duration-300">
+                  <label className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-2 block">Scaglione IRPEF (Simulazione)</label>
+                  <div className="grid grid-cols-3 gap-2 p-1.5 bg-black/30 rounded-xl border border-white/5">
+                    <button
+                      onClick={() => setSimScaglione(23)}
+                      className={`py-2 text-sm font-medium rounded-lg transition-all ${simScaglione === 23 ? 'bg-[#007AFF] text-white shadow-md' : 'text-slate-400 hover:text-white'}`}
+                    >23%</button>
+                    <button
+                      onClick={() => setSimScaglione(35)}
+                      className={`py-2 text-sm font-medium rounded-lg transition-all ${simScaglione === 35 ? 'bg-[#007AFF] text-white shadow-md' : 'text-slate-400 hover:text-white'}`}
+                    >35%</button>
+                    <button
+                      onClick={() => setSimScaglione(43)}
+                      className={`py-2 text-sm font-medium rounded-lg transition-all ${simScaglione === 43 ? 'bg-[#007AFF] text-white shadow-md' : 'text-slate-400 hover:text-white'}`}
+                    >43%</button>
+                  </div>
+                </div>
+              )}
+
               <div className="pt-6 border-t border-white/10 grid grid-cols-2 gap-4">
                 <div className="bg-black/20 p-4 rounded-2xl border border-white/5">
                   <p className="text-slate-400 text-xs uppercase tracking-wider font-semibold mb-1">Cassa Forense</p>
@@ -320,7 +354,7 @@ export default function Home() {
                 L&#39;unica soluzione dedicata alla realtà forense italiana strutturata su architettura <strong>Zero-Trust</strong>. I tuoi dati finanziari sono vincolati algoritmicamente al tuo token crittografico.
               </p>
               <p>
-                <strong>LexTax non ha accesso, non legge, e non può materialmente manipolare, rubare o vendere a terzi</strong> né il tuo fatturato né i dati dei tuoi clienti. L&#39;infrastruttura Cloud blinda le tue fatture tramite protocolli RLS (Row Level Security).
+                <strong>StateraLex non ha accesso, non legge, e non può materialmente manipolare, rubare o vendere a terzi</strong> né il tuo fatturato né i dati dei tuoi clienti. L&#39;infrastruttura Cloud blinda le tue fatture tramite protocolli RLS (Row Level Security).
               </p>
             </div>
 
@@ -374,7 +408,7 @@ export default function Home() {
         <div className="max-w-6xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-6">
           <div className="flex items-center gap-3 opacity-50">
             <Scale className="w-6 h-6 text-white" />
-            <span className="text-xl font-bold tracking-tight text-white">LexTax</span>
+            <span className="text-xl font-bold tracking-tight text-white">StateraLex</span>
           </div>
 
           <div className="flex gap-8 text-sm text-slate-500 font-medium">
@@ -386,7 +420,7 @@ export default function Home() {
           </div>
         </div>
         <div className="max-w-6xl mx-auto mt-8 text-xs text-slate-600 font-medium text-center sm:text-left leading-relaxed">
-          &copy; {new Date().getFullYear()} LexTax Ltd. Questo gestionale utilizza un&apos;infrastruttura sicura in cui tutti i dati immessi (fatture, importi, spese e clienti) sono criptati e isolati. LexTax non vende, non condivide e non ha il permesso tecnico di prelevare informazioni personali o finanziarie dei propri utenti per alcuno scopo (pubblicitario o commerciale).
+          &copy; {new Date().getFullYear()} StateraLex Ltd. Questo gestionale utilizza un&apos;infrastruttura sicura in cui tutti i dati immessi (fatture, importi, spese e clienti) sono criptati e isolati. StateraLex non vende, non condivide e non ha il permesso tecnico di prelevare informazioni personali o finanziarie dei propri utenti per alcuno scopo (pubblicitario o commerciale).
         </div>
       </footer>
 

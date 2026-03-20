@@ -737,7 +737,7 @@ export default function Dashboard() {
                     <span style={{ color: "var(--emerald-500)", fontWeight: "bold" }}>🟢 DEDUCIBILI AL 100% (Senza limiti)</span>
                     <ul style={{ paddingLeft: "1.2rem", marginTop: "4px" }}>
                       <li><strong>Lavoro & Cancelleria:</strong> Computer, tablet, stampanti, carta, toner, penne.</li>
-                      <li><strong>Software:</strong> PEC, firma digitale, abbonamenti cloud (LexTax 😍).</li>
+                      <li><strong>Software:</strong> PEC, firma digitale, abbonamenti cloud (StateraLex 😍).</li>
                       <li><strong>Spese Anticipate:</strong> Rimborsi spese in nome/conto del cliente debitamente fatturati.</li>
                       <li><strong>Abbigliamento (Toga):</strong> Dedicato solo alla Toga per avvocati.</li>
                     </ul>
@@ -788,7 +788,7 @@ export default function Dashboard() {
 
                 </div>
                 <p style={{ fontSize: "0.75rem", color: "var(--destructive)", marginTop: "1rem", opacity: 0.8 }}>
-                  <em>Disclaimer: LexTax applica le aliquote presunte per un normale Libero Professionista. Fai sempre validare l'inerenza della spesa dal tuo Medico o Commercialista (art 54 TUIR).</em>
+                  <em>Disclaimer: StateraLex applica le aliquote presunte per un normale Libero Professionista. Fai sempre validare l'inerenza della spesa dal tuo Medico o Commercialista (art 54 TUIR).</em>
                 </p>
               </div>
 
