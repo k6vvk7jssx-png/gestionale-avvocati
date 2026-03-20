@@ -83,28 +83,42 @@ export default function ExportCommercialistaButton() {
 
             // --- FOGLIO 1: FATTURE EMESSE ---
             let totaleIncassato = 0; // Compenso + Spese Generali
-            
+            let sumCpa = 0;
+            let sumIva = 0;
+            let sumRitenute = 0;
+
             const fattureData = (cause || []).map(c => {
                 const dataFattura = c.data_sentenza ? new Date(c.data_sentenza).toLocaleDateString() : "N/D";
                 const cliente = c.cliente || c.titolo || "N/D";
                 const compenso = Number(c.compenso_base || c.compenso_lordo || 0);
                 const speseGenerali = compenso * 0.15;
+                const speseArt15 = c.spese_esenti ? Number(c.spese_esenti) : 0;
                 const imponibileLordo = compenso + speseGenerali;
                 
                 totaleIncassato += imponibileLordo;
 
                 const cpa = c.cpa_4 ? Number(c.cpa_4) : imponibileLordo * 0.04;
-                const iva = c.iva_22 ? Number(c.iva_22) : (imponibileLordo + cpa) * 0.22;
-                const totaleLordo = imponibileLordo + cpa + iva;
+                const iva = c.iva_22 ? Number(c.iva_22) : (isRegimeOrdinario ? (imponibileLordo + cpa) * 0.22 : 0);
+                const totaleLordo = imponibileLordo + cpa + iva + speseArt15;
+
+                const ritenuta = c.ritenuta_20 ? Number(c.ritenuta_20) : (isRegimeOrdinario ? imponibileLordo * 0.20 : 0);
+                const nettoIncassato = totaleLordo - ritenuta;
+
+                sumCpa += cpa;
+                sumIva += iva;
+                sumRitenute += ritenuta;
 
                 return {
                     "Data": dataFattura,
                     "Cliente / Pratica": cliente,
                     "Compenso (€)": compenso.toFixed(2),
                     "Spese Generali (15%) (€)": speseGenerali.toFixed(2),
+                    "Spese Art. 15 (€)": speseArt15.toFixed(2),
                     "CPA (€)": cpa.toFixed(2),
                     "IVA (€)": iva.toFixed(2),
-                    "Totale Lordo Fattura (€)": totaleLordo.toFixed(2)
+                    "Ritenuta d'Acconto (€)": ritenuta.toFixed(2),
+                    "Totale Lordo Fattura (€)": totaleLordo.toFixed(2),
+                    "Netto Incassato (€)": nettoIncassato.toFixed(2)
                 };
             });
 
@@ -142,7 +156,7 @@ export default function ExportCommercialistaButton() {
                     "Data": dataSpesa,
                     "Fornitore / Descrizione": fornitore,
                     "Categoria": categoria,
-                    "Importo Speso (€)": importo.toFixed(2),
+                    "Importo Speso (Lordo IVA) (€)": importo.toFixed(2),
                     "% Deducibilità": isRegimeOrdinario ? `${(rate * 100).toFixed(0)}%` : "N/A",
                     "Importo Deducibile Netto (€)": importoDeducibile.toFixed(2)
                 };
@@ -173,6 +187,9 @@ export default function ExportCommercialistaButton() {
                 { "Voce": "Totale Spese Deducibili Applicate", "Valore": isRegimeOrdinario ? `€ ${totaleSpeseDeducibili.toFixed(2)}` : "€ 0.00 (Forfettario)" },
                 { "Voce": "Imponibile Fiscale Calcolato", "Valore": `€ ${imponibileFiscale.toFixed(2)}` },
                 { "Voce": "Cassa Forense Teorica (Maturata)", "Valore": `€ ${cassaTeorica.toFixed(2)}` },
+                { "Voce": "Totale CPA Maturato (4%)", "Valore": `€ ${sumCpa.toFixed(2)}` },
+                { "Voce": "Totale IVA Incassata (A Debito)", "Valore": `€ ${sumIva.toFixed(2)}` },
+                { "Voce": "Totale Ritenute Subite (Credito IRPEF)", "Valore": `€ ${sumRitenute.toFixed(2)}` },
                 { "Voce": "Alert Minimale", "Valore": "Nota: Contributo Soggettivo Minimo di Legge ~3.600€ annui" }
             ];
 
@@ -185,8 +202,8 @@ export default function ExportCommercialistaButton() {
             const wsRiepilogo = XLSX.utils.json_to_sheet(riepilogoData);
 
             // Larghezze colonne ottimizzate
-            wsFatture['!cols'] = [{ wch: 12 }, { wch: 30 }, { wch: 15 }, { wch: 22 }, { wch: 12 }, { wch: 12 }, { wch: 22 }];
-            wsSpese['!cols'] = [{ wch: 12 }, { wch: 35 }, { wch: 20 }, { wch: 20 }, { wch: 15 }, { wch: 25 }];
+            wsFatture['!cols'] = [{ wch: 12 }, { wch: 30 }, { wch: 15 }, { wch: 22 }, { wch: 18 }, { wch: 12 }, { wch: 12 }, { wch: 22 }, { wch: 24 }, { wch: 20 }];
+            wsSpese['!cols'] = [{ wch: 12 }, { wch: 35 }, { wch: 20 }, { wch: 30 }, { wch: 15 }, { wch: 30 }];
             wsRiepilogo['!cols'] = [{ wch: 60 }, { wch: 30 }];
 
             // 3. Aggiunge i fogli creati al Workbook con i nomi richiesti
