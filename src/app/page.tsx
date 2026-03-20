@@ -24,45 +24,63 @@ export default function Home() {
 
   // Simulatore Fiscale Logica
   const calcoloSimulatore = useMemo(() => {
-    const imponibileLordo = parseFloat(simLordo) || 0;
+    const importoLordo = parseFloat(simLordo) || 0;
 
     const CASSA_ALIQUOTA_BASE = 0.17;
     const CASSA_ALIQUOTA_ECCEDENZA = 0.03;
     const CASSA_TETTO = 135000;
 
     if (simRegime.startsWith("forfettario")) {
-      // Per una simulazione rapida consideriamo il Fatturato inserito come l'Imponibile Lordo complessivo
-      const redditoImponibileLordo = imponibileLordo * 0.78;
-      
-      let cassaSoggettivo = 0;
-      if (redditoImponibileLordo <= CASSA_TETTO) {
-        cassaSoggettivo = redditoImponibileLordo * CASSA_ALIQUOTA_BASE;
-      } else {
-        cassaSoggettivo = (CASSA_TETTO * CASSA_ALIQUOTA_BASE) + ((redditoImponibileLordo - CASSA_TETTO) * CASSA_ALIQUOTA_ECCEDENZA);
-      }
+      const compensoBase = importoLordo;
+      const speseGenerali = compensoBase * 0.15;
+      const redditoImponibileLordo = (compensoBase + speseGenerali) * 0.78;
 
-      const baseImponibileNetta = Math.max(0, redditoImponibileLordo - cassaSoggettivo);
+      let cassaSoggettiva = 0;
+      if (redditoImponibileLordo <= CASSA_TETTO) {
+        cassaSoggettiva = redditoImponibileLordo * CASSA_ALIQUOTA_BASE;
+      } else {
+        cassaSoggettiva = (CASSA_TETTO * CASSA_ALIQUOTA_BASE) + ((redditoImponibileLordo - CASSA_TETTO) * CASSA_ALIQUOTA_ECCEDENZA);
+      }
+      const cpa = (compensoBase + speseGenerali) * 0.04;
+      const cassaTotale = cassaSoggettiva + cpa;
+
+      const baseImponibileNetta = Math.max(0, redditoImponibileLordo - cassaSoggettiva);
       const aliquota = simRegime === "forfettario_5" ? 0.05 : 0.15;
       const tasse = baseImponibileNetta * aliquota;
 
-      const nettoStima = imponibileLordo - tasse - cassaSoggettivo;
-      return { tasse, cassa: cassaSoggettivo, netto: nettoStima };
+      const volumeAffariLordo = compensoBase + speseGenerali + cpa;
+      const nettoStima = volumeAffariLordo - tasse - cassaTotale;
+      return { tasse, cassa: cassaTotale, netto: nettoStima, volumeAffariLordo, ritenuta: 0 };
     } else {
-      // Ordinario - Simulazione Front-end (senza spese deducibili inserite)
-      const imponibileCassa = Math.max(0, imponibileLordo);
+      const compensoBase = importoLordo;
+      const speseGenerali = compensoBase * 0.15;
+      const imponibileLordo = compensoBase + speseGenerali;
+      const speseDeducibili = 0;
+
+      const imponibileCassa = Math.max(0, imponibileLordo - speseDeducibili);
       let cassaSoggettiva = 0;
       if (imponibileCassa <= CASSA_TETTO) {
           cassaSoggettiva = imponibileCassa * CASSA_ALIQUOTA_BASE;
       } else {
           cassaSoggettiva = (CASSA_TETTO * CASSA_ALIQUOTA_BASE) + ((imponibileCassa - CASSA_TETTO) * CASSA_ALIQUOTA_ECCEDENZA);
       }
+      const cpa = imponibileLordo * 0.04;
+      const cassaTotale = cassaSoggettiva + cpa;
+
+      const ivaDaVersare = (imponibileLordo + cpa) * 0.22;
+      const ritenutaScontata = imponibileLordo * 0.20;
 
       const imponibileIrpef = Math.max(0, imponibileCassa - cassaSoggettiva);
-      const tasse = imponibileIrpef * (simScaglione / 100.0);
+      const irpefLorda = imponibileIrpef * (simScaglione / 100.0);
+      const irpefaSaldo = Math.max(0, irpefLorda - ritenutaScontata);
 
-      const nettoStima = imponibileLordo - tasse - cassaSoggettiva;
+      const addizionali = imponibileIrpef * 0.03;
+      const tasse = ivaDaVersare + irpefaSaldo + addizionali;
 
-      return { tasse, cassa: cassaSoggettiva, netto: nettoStima };
+      const volumeAffariLordo = imponibileLordo + cpa + ivaDaVersare;
+      const nettoStima = volumeAffariLordo - tasse - cassaTotale - ritenutaScontata - speseDeducibili;
+
+      return { tasse, cassa: cassaTotale, netto: nettoStima, volumeAffariLordo, ritenuta: ritenutaScontata };
     }
   }, [simLordo, simRegime, simScaglione]);
 
@@ -191,7 +209,7 @@ export default function Home() {
 
             <div className="space-y-6">
               <div>
-                <label className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-2 block">Il tuo Fatturato Annuo Stimato</label>
+                <label className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-2 block">Il tuo Compenso Base</label>
                 <div className="relative">
                   <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-medium text-lg">€</span>
                   <input
@@ -200,6 +218,10 @@ export default function Home() {
                     onChange={(e) => setSimLordo(e.target.value)}
                     className="w-full bg-black/30 border border-white/10 rounded-xl py-4 pl-10 pr-4 text-white text-xl font-semibold outline-none focus:border-[#007AFF] focus:ring-1 focus:ring-[#007AFF] transition-all"
                   />
+                </div>
+                <div className="mt-2 flex justify-between items-center text-xs text-slate-400 px-2">
+                  <span>Volume d'Affari Finale (+15%{simRegime === 'ordinario' ? ', CPA, IVA' : ', CPA'})</span>
+                  <span className="font-bold text-slate-200">€{calcoloSimulatore.volumeAffariLordo.toLocaleString('it-IT', { maximumFractionDigits: 0 })}</span>
                 </div>
               </div>
 
@@ -253,9 +275,16 @@ export default function Home() {
                   <p className="text-xl font-bold text-slate-200">€{calcoloSimulatore.cassa.toLocaleString('it-IT', { maximumFractionDigits: 0 })}</p>
                 </div>
                 <div className="bg-black/20 p-4 rounded-2xl border border-white/5">
-                  <p className="text-slate-400 text-xs uppercase tracking-wider font-semibold mb-1">Tasse (IRPEF/Sost)</p>
+                  <p className="text-slate-400 text-xs uppercase tracking-wider font-semibold mb-1">Tasse{simRegime === 'ordinario' ? ' (+IVA)' : ''}</p>
                   <p className="text-xl font-bold text-red-400">€{calcoloSimulatore.tasse.toLocaleString('it-IT', { maximumFractionDigits: 0 })}</p>
                 </div>
+                
+                {simRegime === 'ordinario' && (
+                  <div className="col-span-2 bg-black/20 p-3 rounded-xl border border-white/5 flex justify-between items-center px-4">
+                    <span className="text-slate-400 text-xs uppercase tracking-wider font-semibold">Ritenuta Da Scontare</span>
+                    <span className="text-sm font-bold text-slate-300">- €{calcoloSimulatore.ritenuta.toLocaleString('it-IT', { maximumFractionDigits: 0 })}</span>
+                  </div>
+                )}
               </div>
 
               <div className="bg-gradient-to-r from-emerald-500/10 to-emerald-500/5 border border-emerald-500/20 p-6 rounded-2xl flex justify-between items-center">
