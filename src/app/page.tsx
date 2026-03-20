@@ -24,18 +24,15 @@ export default function Home() {
 
   // Simulatore Fiscale Logica
   const calcoloSimulatore = useMemo(() => {
-    const importoLordo = parseFloat(simLordo) || 0;
+    const imponibileLordo = parseFloat(simLordo) || 0;
 
     const CASSA_ALIQUOTA_BASE = 0.17;
     const CASSA_ALIQUOTA_ECCEDENZA = 0.03;
     const CASSA_TETTO = 135000;
 
     if (simRegime.startsWith("forfettario")) {
-      // Il Fatturato inserito è trattato come Volume d'Affari (Compenso + 15% Spese + CPA 4%)
-      const imponibileLordoItem = importoLordo / 1.04;
-      const cpa = imponibileLordoItem * 0.04;
-
-      const redditoImponibileLordo = imponibileLordoItem * 0.78;
+      // Per una simulazione rapida consideriamo il Fatturato inserito come l'Imponibile Lordo complessivo
+      const redditoImponibileLordo = imponibileLordo * 0.78;
       
       let cassaSoggettivo = 0;
       if (redditoImponibileLordo <= CASSA_TETTO) {
@@ -44,35 +41,28 @@ export default function Home() {
         cassaSoggettivo = (CASSA_TETTO * CASSA_ALIQUOTA_BASE) + ((redditoImponibileLordo - CASSA_TETTO) * CASSA_ALIQUOTA_ECCEDENZA);
       }
 
-      const cassaTotale = cassaSoggettivo + cpa;
-
       const baseImponibileNetta = Math.max(0, redditoImponibileLordo - cassaSoggettivo);
       const aliquota = simRegime === "forfettario_5" ? 0.05 : 0.15;
       const tasse = baseImponibileNetta * aliquota;
 
-      const nettoStima = importoLordo - tasse - cassaTotale;
-      return { tasse, cassa: cassaTotale, netto: nettoStima };
+      const nettoStima = imponibileLordo - tasse - cassaSoggettivo;
+      return { tasse, cassa: cassaSoggettivo, netto: nettoStima };
     } else {
-      // Ordinario - Simulazione Front-end su scaglione secco
-      const imponibileLordoItem = importoLordo / 1.04;
-      const cpa = imponibileLordoItem * 0.04;
-      const speseDeducibili = 0;
-
-      const imponibileCassa = Math.max(0, imponibileLordoItem - speseDeducibili);
+      // Ordinario - Simulazione Front-end (senza spese deducibili inserite)
+      const imponibileCassa = Math.max(0, imponibileLordo);
       let cassaSoggettiva = 0;
       if (imponibileCassa <= CASSA_TETTO) {
           cassaSoggettiva = imponibileCassa * CASSA_ALIQUOTA_BASE;
       } else {
           cassaSoggettiva = (CASSA_TETTO * CASSA_ALIQUOTA_BASE) + ((imponibileCassa - CASSA_TETTO) * CASSA_ALIQUOTA_ECCEDENZA);
       }
-      const cassaTotale = cassaSoggettiva + cpa;
 
       const imponibileIrpef = Math.max(0, imponibileCassa - cassaSoggettiva);
       const tasse = imponibileIrpef * (simScaglione / 100.0);
 
-      const nettoStima = importoLordo - tasse - cassaTotale;
+      const nettoStima = imponibileLordo - tasse - cassaSoggettiva;
 
-      return { tasse, cassa: cassaTotale, netto: nettoStima };
+      return { tasse, cassa: cassaSoggettiva, netto: nettoStima };
     }
   }, [simLordo, simRegime, simScaglione]);
 
