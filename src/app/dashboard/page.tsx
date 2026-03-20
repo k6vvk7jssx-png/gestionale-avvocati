@@ -366,7 +366,7 @@ export default function Dashboard() {
       if (error) throw error;
 
       await caricaDatiMensili();
-      setSelectedCategory(null); // Chiude o rinfresca il modale
+      // Removed setSelectedCategory(null) so the modal dynamically updates and stays open
     } catch (err: unknown) {
       console.error(err);
       const msg = err instanceof Error ? err.message : String(err);
@@ -605,7 +605,7 @@ export default function Dashboard() {
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
-        {ctxGrouped.map((cat, idx) => (
+        {categorieSpesa.map((cat, idx) => (
           <div
             key={idx}
             className="ios-card hover:bg-white/5 transition-colors flex flex-col justify-between"
@@ -634,43 +634,26 @@ export default function Dashboard() {
               <div style={{ fontSize: "4rem", marginBottom: "1rem" }}>{selectedCategory.icona}</div>
               <h2>{selectedCategory.nome}</h2>
               <p style={{ fontSize: "1.5rem", fontWeight: "bold", color: "var(--primary)" }}>
-                Totale Categoria: €{selectedCategory.totale.toFixed(2)}
+                Totale Categoria: €{transazioniDellaCategoria.reduce((acc, curr) => acc + Number(curr.importo), 0).toFixed(2)}
               </p>
             </div>
 
             <div style={{ padding: "0 1rem", maxHeight: "40vh", overflowY: "auto" }}>
-              {/* @ts-ignore */}
-              {selectedCategory.transazioni?.length === 0 ? (
+              {transazioniDellaCategoria.length === 0 ? (
                 <div style={{ textAlign: "center", opacity: 0.5, padding: "2rem" }}>
                   Nessuna transazione in questa categoria.
                 </div>
               ) : (
-                /* @ts-ignore */
-                selectedCategory.transazioni?.map((t: any) => (
+                transazioniDellaCategoria.map((t: any) => (
                   <div key={t.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0", borderBottom: "1px solid var(--border)" }}>
                     <div style={{ textAlign: "left" }}>
-                      <div style={{ fontWeight: "600", color: "var(--foreground)", fontSize: "1rem" }}>{t.description || t.category}</div>
-                      <div style={{ fontSize: "0.8rem", opacity: 0.5 }}>{new Date(t.date).toLocaleDateString()}</div>
+                      <div style={{ fontWeight: "600", color: "var(--foreground)", fontSize: "1rem" }}>{t.descrizione || t.categoria}</div>
+                      <div style={{ fontSize: "0.8rem", opacity: 0.5 }}>{new Date(t.data_transazione || t.created_at).toLocaleDateString()}</div>
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
-                      <span style={{ fontWeight: "bold", color: "var(--destructive)", fontSize: "1.1rem" }}>€{Number(t.amount).toFixed(2)}</span>
+                      <span style={{ fontWeight: "bold", color: "var(--destructive)", fontSize: "1.1rem" }}>€{Number(t.importo).toFixed(2)}</span>
                       <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          removeExpense(t.id);
-                          // Aggiorna istantaneamente il modale o lo chiudi se vuoto
-                          // @ts-ignore
-                          const prevList = selectedCategory.transazioni;
-                          if (prevList.length === 1) setSelectedCategory(null);
-                          else {
-                            const newList = prevList.filter((tr: any) => tr.id !== t.id);
-                            setSelectedCategory({
-                              ...selectedCategory,
-                              transazioni: newList,
-                              totale: newList.reduce((acc: number, curr: any) => acc + curr.amount, 0)
-                            } as any);
-                          }
-                        }}
+                        onClick={(e) => handleDeleteTransazione(t.id, e)}
                         style={{ background: "none", border: "none", color: "var(--destructive)", padding: "4px", cursor: "pointer", opacity: 0.8, transition: "opacity 0.2s" }}
                         onMouseEnter={(e) => e.currentTarget.style.opacity = "1"}
                         onMouseLeave={(e) => e.currentTarget.style.opacity = "0.8"}
