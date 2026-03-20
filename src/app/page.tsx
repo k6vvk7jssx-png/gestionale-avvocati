@@ -31,9 +31,11 @@ export default function Home() {
     const CASSA_TETTO = 135000;
 
     if (simRegime.startsWith("forfettario")) {
-      const compensoBase = importoLordo;
-      const speseGenerali = compensoBase * 0.15;
-      const redditoImponibileLordo = (compensoBase + speseGenerali) * 0.78;
+      // Il Fatturato inserito è trattato come Volume d'Affari (Compenso + 15% Spese + CPA 4%)
+      const imponibileLordoItem = importoLordo / 1.04;
+      const cpa = imponibileLordoItem * 0.04;
+
+      const redditoImponibileLordo = imponibileLordoItem * 0.78;
       
       let cassaSoggettivo = 0;
       if (redditoImponibileLordo <= CASSA_TETTO) {
@@ -42,45 +44,33 @@ export default function Home() {
         cassaSoggettivo = (CASSA_TETTO * CASSA_ALIQUOTA_BASE) + ((redditoImponibileLordo - CASSA_TETTO) * CASSA_ALIQUOTA_ECCEDENZA);
       }
 
-      const cpa = (compensoBase + speseGenerali) * 0.04;
       const cassaTotale = cassaSoggettivo + cpa;
 
-      const baseImponibileNetta = redditoImponibileLordo - cassaSoggettivo;
+      const baseImponibileNetta = Math.max(0, redditoImponibileLordo - cassaSoggettivo);
       const aliquota = simRegime === "forfettario_5" ? 0.05 : 0.15;
       const tasse = baseImponibileNetta * aliquota;
 
-      const volumeAffariLordo = compensoBase + speseGenerali + cpa;
-      const nettoStima = volumeAffariLordo - tasse - cassaTotale;
+      const nettoStima = importoLordo - tasse - cassaTotale;
       return { tasse, cassa: cassaTotale, netto: nettoStima };
     } else {
-      // Ordinario
-      const compensoBase = importoLordo;
-      const speseGenerali = compensoBase * 0.15;
-      const imponibileLordo = compensoBase + speseGenerali;
+      // Ordinario - Simulazione Front-end su scaglione secco
+      const imponibileLordoItem = importoLordo / 1.04;
+      const cpa = imponibileLordoItem * 0.04;
       const speseDeducibili = 0;
 
-      const imponibileCassa = Math.max(0, imponibileLordo - speseDeducibili);
+      const imponibileCassa = Math.max(0, imponibileLordoItem - speseDeducibili);
       let cassaSoggettiva = 0;
       if (imponibileCassa <= CASSA_TETTO) {
           cassaSoggettiva = imponibileCassa * CASSA_ALIQUOTA_BASE;
       } else {
           cassaSoggettiva = (CASSA_TETTO * CASSA_ALIQUOTA_BASE) + ((imponibileCassa - CASSA_TETTO) * CASSA_ALIQUOTA_ECCEDENZA);
       }
-      const cpa = imponibileLordo * 0.04;
       const cassaTotale = cassaSoggettiva + cpa;
 
-      const ivaDaVersare = (imponibileLordo + cpa) * 0.22;
-      const ritenutaScontata = imponibileLordo * 0.20;
-
       const imponibileIrpef = Math.max(0, imponibileCassa - cassaSoggettiva);
-      const irpefLorda = imponibileIrpef * (simScaglione / 100.0);
-      const irpefaSaldo = Math.max(0, irpefLorda - ritenutaScontata);
+      const tasse = imponibileIrpef * (simScaglione / 100.0);
 
-      const addizionali = imponibileIrpef * 0.03;
-      const tasse = ivaDaVersare + irpefaSaldo + addizionali;
-
-      const volumeAffariLordo = imponibileLordo + cpa + ivaDaVersare;
-      const nettoStima = volumeAffariLordo - tasse - cassaTotale - ritenutaScontata - speseDeducibili;
+      const nettoStima = importoLordo - tasse - cassaTotale;
 
       return { tasse, cassa: cassaTotale, netto: nettoStima };
     }
