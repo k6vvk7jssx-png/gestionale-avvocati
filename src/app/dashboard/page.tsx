@@ -9,6 +9,7 @@ import { CheckCircle2, XCircle, Trash2 } from "lucide-react";
 import ExportCommercialistaButton from "@/components/ExportCommercialistaButton";
 import { useExpenseContext } from "@/context/ExpenseContext";
 import { getProfiloAction } from "@/app/impostazioni/actions";
+import AiAdvisor from "@/components/AiAdvisor";
 
 ChartJS.register(ArcElement, Tooltip, Legend);
 
@@ -546,11 +547,13 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div className="hidden lg:block ios-card opacity-50 flex items-center justify-center border border-dashed border-gray-400">
-          <div className="text-center">
-            <div className="text-3xl mb-2">📊</div>
-            <p className="text-sm">Spazio riservato a futuri Modelli ML</p>
-          </div>
+        <div className="hidden lg:block">
+          <AiAdvisor financialData={{
+            entrate: entrateMensili,
+            uscite: usciteMensili,
+            tasse: tasseMensiliAccantonate,
+            regime: regimeCorrente || "forfettario"
+          }} />
         </div>
 
       </div>
