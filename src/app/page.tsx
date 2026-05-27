@@ -438,6 +438,7 @@ export default function Home() {
                     headerTitle: 'text-2xl font-bold text-white tracking-tight',
                     headerSubtitle: 'text-slate-400 font-medium',
                     socialButtonsBlockButton: 'border border-white/10 bg-black/20 hover:bg-black/40 text-white transition-all rounded-[1rem] py-3.5',
+                    socialButtonsBlockButtonText: 'text-white font-semibold text-sm',
                     formButtonPrimary: 'bg-[#007AFF] hover:bg-[#005bb5] text-white shadow-lg shadow-[#007AFF]/20 rounded-[1rem] py-3.5 font-bold tracking-wide mt-2',
                     formFieldInput: 'border-white/10 focus:border-[#007AFF] bg-black/40 rounded-[1rem] py-3.5 px-4 text-white',
                     formFieldLabel: 'text-slate-400 uppercase tracking-wider text-[11px] font-bold',

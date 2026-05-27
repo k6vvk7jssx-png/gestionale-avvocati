@@ -367,3 +367,17 @@ p {
     opacity: 1;
   }
 }
+
+/* Clerk Custom Dark Mode Styles & Contrast Fixes */
+@media (prefers-color-scheme: dark) {
+  /* Invert Apple logo to white in dark mode so it's visible on dark buttons */
+  .cl-socialButtonsBlockButton[data-provider="apple"] img,
+  .cl-socialButtonsBlockButton[data-provider="apple"] svg,
+  .cl-socialButtonsBlockButton__apple img,
+  .cl-socialButtonsBlockButton__apple svg,
+  .cl-socialButtonsProviderIcon__apple,
+  .cl-socialButtonsProviderIcon__apple img,
+  .cl-socialButtonsProviderIcon__apple svg {
+    filter: invert(1) !important;
+  }
+}
