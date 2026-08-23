@@ -1,36 +1,50 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Statera-Lex
 
-## Getting Started
+[![Next.js 15](https://img.shields.io/badge/Next.js-15-black.svg)](https://nextjs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue.svg)](https://www.typescriptlang.org/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind-3.4-38B2AC.svg)](https://tailwindcss.com/)
+[![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL-3ECF8E.svg)](https://supabase.com/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-First, run the development server:
+**Statera-Lex** is a financial management, legal accounting, and tax automation SaaS platform engineered specifically for Italian law firms, attorneys, and freelance legal professionals.
+
+---
+
+## ✨ Features
+
+* **Forensic Tax Engine (`taxCalculator.ts`):** Full calculation compliant with Italian legal standards (Compenso Base, Spese Generali 15%, Cassa Previdenza Avvocati 4%, Ritenuta d'Acconto 20%, IVA 22%, Regime Ordinario & Forfettario).
+* **Smart OCR Receipt Scanner:** Serverless OCR pipeline that extracts totals, vendor data, and deductibility categories from receipt photos.
+* **Case Management & Legal Billing:** Real-time dashboard for ongoing legal proceedings, client billing, and tax projections.
+* **Commercialista Export:** One-click export format tailored for Italian certified public accountants.
+* **Secure Multi-Tenant Auth:** Supabase PostgreSQL with Row Level Security (RLS) policies.
+
+---
+
+## 🛠️ Tech Stack
+
+* **Frontend:** Next.js 15 (App Router), React, TypeScript, Tailwind CSS.
+* **Backend:** Next.js Server Actions, Supabase PostgreSQL, Python Serverless Functions.
+* **OCR & AI:** OCR.space API, automated regex entity extractor.
+
+---
+
+## 🚀 Getting Started
 
 ```bash
+git clone https://github.com/k6vvk7jssx-png/Statera-lex.git
+cd Statera-lex
+
+# Install dependencies
+npm install
+
+# Setup environment variables
+cp .env.example .env.local
+
+# Run development server
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+---
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 📄 License
+MIT License.
